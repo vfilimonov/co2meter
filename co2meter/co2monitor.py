@@ -33,6 +33,8 @@ def longint_to_list(x):
 
 #############################################################################
 def convert_temperature(val):
+    """ Convert temperature from Kelvin (unit of 1/16th K) to Celsius
+    """
     return val * 0.0625 - 273.15
 
 
@@ -57,7 +59,12 @@ class CO2monitor:
 
     def hid_open(self, send_magic_table=True):
         """ Open connection to HID device """
-        self._h.open(self._info['vendor_id'], self._info['product_id'])
+        try:
+            # Check if already open
+            self._h.get_product_string()
+        except ValueError:
+            # Else establish connection
+            self._h.open(self._info['vendor_id'], self._info['product_id'])
         if send_magic_table:
             self._h.send_feature_report(self._magic_table)
 
@@ -117,7 +124,7 @@ class CO2monitor:
 
         if msg[0] == _CODE_CO2:  # CO2 concentration in ppm
             return int(value), None
-        elif msg[0] == _CODE_TEMPERATURE:  # Temperature in Kelvin (unit of 1/16th K)
+        elif msg[0] == _CODE_TEMPERATURE:  # Temperature in Celsius
             return None, convert_temperature(value)
         else:  # Other codes - so far not decoded
             return None, None
@@ -139,8 +146,8 @@ class CO2monitor:
         return ts, co2, temp
 
     def read_values(self, num_values=1, max_requests=50):
-        """ Listen to values from device until both temperature and CO2 are returned.
-            - Max_requests: limits number of requests (i.e. effective timeout)
+        """ Listen to values from device and retrieve temperature and CO2.
+            - Max_requests: limits number of requests (i.e. timeout)
             - num_values: number of values to retrieve (default: 1)
         """
         data = []
