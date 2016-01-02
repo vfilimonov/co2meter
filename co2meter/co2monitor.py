@@ -122,6 +122,22 @@ class CO2monitor:
         else:  # Other codes - so far not decoded
             return None, None
 
+    def _read_co2_temp(self, max_requests=50):
+        """ Read one pair of values from the device.
+            HID device should be open before
+        """
+        co2, temp = None, None
+        for ii in range(max_requests):
+            _co2, _temp = self.decode_message(self.hid_read())
+            if _co2 is not None:
+                co2 = _co2
+            if _temp is not None:
+                temp = _temp
+            if (co2 is not None) and (temp is not None):
+                break
+        ts = dt.datetime.now().replace(microsecond=0)
+        return ts, co2, temp
+
     def read_values(self, num_values=1, max_requests=50):
         """ Listen to values from device until both temperature and CO2 are returned.
             - Max_requests: limits number of requests (i.e. effective timeout)
@@ -130,18 +146,8 @@ class CO2monitor:
         data = []
         with self.co2hid(send_magic_table=True):
             for _ in range(num_values):
-                co2, temp = None, None
-                for ii in range(max_requests):
-                    _co2, _temp = self.decode_message(self.hid_read())
-                    if _co2 is not None:
-                        co2 = _co2
-                    if _temp is not None:
-                        temp = _temp
-                    if (co2 is not None) and (temp is not None):
-                        break
-
-                ts = dt.datetime.now().replace(microsecond=0)
-                data.append((ts, co2, temp))
+                vals = self._read_co2_temp(max_requests=max_requests)
+                data.append(vals)
 
         # If pandas is accessible - return pandas.DataFrame
         if pd is not None:
