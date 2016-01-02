@@ -6,6 +6,8 @@
 import hid
 import datetime as dt
 from contextlib import contextmanager
+import threading
+import time
 try:
     import pandas as pd
 except ImportError:
@@ -52,6 +54,16 @@ class CO2monitor:
         self._magic_table = _CO2MON_MAGIC_TABLE
         self._magic_table_int = list_to_longint(_CO2MON_MAGIC_TABLE)
 
+        # Initialisation of continuous monitoring
+        if pd is None:
+            self._data = []
+        else:
+            self._data = pd.DataFrame()
+
+        self._keep_monitoring = False
+        self._interval = 10
+
+        # Device info
         with self.co2hid():
             self._info['manufacturer'] = self._h.get_manufacturer_string()
             self._info['product_name'] = self._h.get_product_string()
@@ -162,3 +174,32 @@ class CO2monitor:
                                  'temp': [x[2] for x in data]},
                                 index=[x[0] for x in data])
         return data
+
+    def _monitoring(self):
+        """ Private function for continuous monitoring.
+        """
+        with self.co2hid(send_magic_table=True):
+            while self._keep_monitoring:
+                vals = self._read_co2_temp(max_requests=1000)
+                if pd is None:
+                    self._data.append(vals)
+                else:
+                    vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
+                                        index=[vals[0]])
+                    self._data = self._data.append(vals)
+                time.sleep(self._interval)
+
+    def start_monitoring(self, interval=5):
+        """ Start continuous monitoring of the values and collecting them
+            in the list / pandas.DataFrame.
+            - Interval: defines interval between consecutive reads in seconds.
+        """
+        self._keep_monitoring = True
+        self._interval = interval
+        t = threading.Thread(target=self._monitoring)
+        t.start()
+
+    def stop_monitoring(self):
+        """ Stop continuous monitoring
+        """
+        self._keep_monitoring = False
