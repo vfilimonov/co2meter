@@ -160,23 +160,19 @@ class CO2monitor:
         ts = dt.datetime.now().replace(microsecond=0)
         return ts, co2, temp
 
-    def read_values(self, num_values=1, max_requests=50):
+    def read_data(self, max_requests=50):
         """ Listen to values from device and retrieve temperature and CO2.
             - Max_requests: limits number of requests (i.e. timeout)
             - num_values: number of values to retrieve (default: 1)
         """
-        data = []
         with self.co2hid(send_magic_table=True):
-            for _ in range(num_values):
-                vals = self._read_co2_temp(max_requests=max_requests)
-                data.append(vals)
+            vals = self._read_co2_temp(max_requests=max_requests)
 
         # If pandas is accessible - return pandas.DataFrame
         if pd is not None:
-            data = pd.DataFrame({'co2': [x[1] for x in data],
-                                 'temp': [x[2] for x in data]},
-                                index=[x[0] for x in data])
-        return data
+            vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
+                                index=[vals[0]])
+        return vals
 
     def _monitoring(self):
         """ Private function for continuous monitoring.
