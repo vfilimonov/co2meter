@@ -5,17 +5,15 @@ CO2meter is a Python interface to the USB CO2 monitor.
 
 ## Installation
 
-Preprequisites are libraries `libusb`, `hidapi` and Python package `hid`.
+Preprequisites are libraries (1) `libusb`, `hidapi` and (2) Python package `hid`.
 
-### Installation of USB and HID libraries
-
-##### OSX
+#### 1a. OSX
 
 Necessarry libraries could be installed via [Homebrew](http://brew.sh/):
 
 	brew install libusb hidapi
 
-##### Linux (NB! not tested)
+#### 1b. Linux (NB! not tested)
 
 In Ubunti, `libusb` could be retrieved via `apt-get`
 
@@ -23,11 +21,11 @@ In Ubunti, `libusb` could be retrieved via `apt-get`
 
 TODO
 
-##### Windows (NB! not tested)
+#### 1c. Windows (NB! not tested)
 
 TODO
 
-### Installation of python package
+#### 2. Installation of python package
 
 First install `pid` package:
 
@@ -68,7 +66,11 @@ After this command, python will be free to execute other code in a usual way, an
 	
 	mon.data.plot(secondary_y='temp')
 	
-This command stops the background thread, when it is not needed anymore:
+The data could be at any point logged to CSV file (NB! `pandas` required). If the file already exists, then only new data (i.e. with timestamps later than the one recorded in the last line) will be appened to the end of file:
+
+	mon.log_data_to_csv('log_co2.csv')
+	
+The following command stops the background thread, when it is not needed anymore:
 
 	mon.stop_monitoring()
 

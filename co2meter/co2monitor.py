@@ -8,6 +8,7 @@ import datetime as dt
 from contextlib import contextmanager
 import threading
 import time
+import os
 try:
     import pandas as pd
 except ImportError:
@@ -261,3 +262,28 @@ class CO2monitor:
         """ Data retrieved with continuous monitoring
         """
         return self._data
+
+    def log_data_to_csv(self, fname):
+        """ Log data retrieved with continuous monitoring to CSV file. If the
+            file already exists, then it will be appended.
+
+            Note, that the method requires pandas package (so far alternative
+            is not implemented).
+
+            Parameters
+            ----------
+            fname : string
+                Filename
+        """
+        if pd is None:
+            raise NotImplementedError('Logging to CSV is implemented '
+                                      'using pandas package only (so far)')
+        if os.path.isfile(fname):
+            # Check the last line to get the timestamp of the last record
+            df = pd.read_csv(fname)
+            last = pd.Timestamp(df.iloc[-1, 0])
+            # Append only new data
+            with open(fname, 'a') as f:
+                self._data[self._data.index > last].to_csv(f, header=False)
+        else:
+            self._data.to_csv(fname)
