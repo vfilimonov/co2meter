@@ -165,14 +165,19 @@ class CO2monitor:
             - Max_requests: limits number of requests (i.e. timeout)
             - num_values: number of values to retrieve (default: 1)
         """
-        with self.co2hid(send_magic_table=True):
-            vals = self._read_co2_temp(max_requests=max_requests)
-
-        # If pandas is accessible - return pandas.DataFrame
-        if pd is not None:
-            vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
-                                index=[vals[0]])
-        return vals
+        if self._keep_monitoring:
+            if pd is None:
+                return self._data[-1]
+            else:
+                return self._data.iloc[[-1]]
+        else:
+            with self.co2hid(send_magic_table=True):
+                vals = self._read_co2_temp(max_requests=max_requests)
+            # If pandas is accessible - return pandas.DataFrame
+            if pd is not None:
+                vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
+                                    index=[vals[0]])
+            return vals
 
     def _monitoring(self):
         """ Private function for continuous monitoring.
