@@ -48,6 +48,8 @@ class CO2monitor:
         self._info = {'vendor_id': _CO2MON_HID_VENDOR_ID,
                       'product_id': _CO2MON_HID_PRODUCT_ID}
         self._h = hid.device()
+        # Number of requests to open connection
+        self._status = 0
 
         self._magic_word = [((w << 4) & 0xFF) | (w >> 4)
                             for w in bytearray(_CO2MON_MAGIC_WORD)]
@@ -71,18 +73,19 @@ class CO2monitor:
 
     def hid_open(self, send_magic_table=True):
         """ Open connection to HID device """
-        try:
-            # Check if already open
-            self._h.get_product_string()
-        except ValueError:
-            # Else establish connection
+        if self._status == 0:
+            # If connection was not opened before
             self._h.open(self._info['vendor_id'], self._info['product_id'])
-        if send_magic_table:
-            self._h.send_feature_report(self._magic_table)
+            if send_magic_table:
+                self._h.send_feature_report(self._magic_table)
+        self._status += 1
 
     def hid_close(self):
         """ close connection to HID device """
-        self._h.close()
+        if self._status > 0:
+            self._status -= 1
+        if self._status == 0:
+            self._h.close()
 
     def hid_read(self):
         """ Read 8-byte string from HID device """
@@ -203,3 +206,9 @@ class CO2monitor:
         """ Stop continuous monitoring
         """
         self._keep_monitoring = False
+
+    @property
+    def data(self):
+        """ Data retrieved with continuous monitoring
+        """
+        return self._data
