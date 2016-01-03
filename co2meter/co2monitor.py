@@ -45,6 +45,8 @@ def convert_temperature(val):
 #############################################################################
 class CO2monitor:
     def __init__(self):
+        """ Initialize the CO2monitor object and retrieve basic HID info.
+        """
         self._info = {'vendor_id': _CO2MON_HID_VENDOR_ID,
                       'product_id': _CO2MON_HID_PRODUCT_ID}
         self._h = hid.device()
@@ -72,7 +74,16 @@ class CO2monitor:
             self._info['serial_no'] = self._h.get_serial_number_string()
 
     def hid_open(self, send_magic_table=True):
-        """ Open connection to HID device """
+        """ Open connection to HID device. If connection is already open,
+            then only the counter of requests is incremented (so hid_close()
+            knows how many sub-processes keep the HID handle)
+
+            Parameters
+            ----------
+            send_magic_table : bool
+                If True then the internal "magic table" will be sent to
+                the device (it is used for decryption)
+        """
         if self._status == 0:
             # If connection was not opened before
             self._h.open(self._info['vendor_id'], self._info['product_id'])
@@ -80,9 +91,20 @@ class CO2monitor:
                 self._h.send_feature_report(self._magic_table)
         self._status += 1
 
-    def hid_close(self):
-        """ close connection to HID device """
-        if self._status > 0:
+    def hid_close(self, force=False):
+        """ Close connection to HID device. If there were several hid_open()
+            attempts then the connection will be closed only after respective
+            number of calls to hid_close() method
+
+            Parameters
+            ----------
+            force : bool
+                Force-close of connection irrespectively of the counter of
+                open requests
+        """
+        if force:
+            self._status = 0
+        elif self._status > 0:
             self._status -= 1
         if self._status == 0:
             self._h.close()
@@ -122,9 +144,19 @@ class CO2monitor:
 
     @staticmethod
     def decode_message(msg):
-        """ Decode value from the decrypted list:
-            - CntR: CO2 concentration in ppm
-            - Tamb: Temperature in Kelvin (unit of 1/16th K)
+        """ Decode value from the decrypted message
+
+            Parameters
+            ----------
+            msg : list
+                Decrypted message retrieved with hid_read() method
+
+            Returns
+            -------
+            CntR : int
+                CO2 concentration in ppm
+            Tamb : float
+                Temperature in Celsius
         """
         # Expected 3 zeros at the end
         bad_msg = (msg[5] != 0) or (msg[6] != 0) or (msg[7] != 0)
@@ -162,8 +194,18 @@ class CO2monitor:
 
     def read_data(self, max_requests=50):
         """ Listen to values from device and retrieve temperature and CO2.
-            - Max_requests: limits number of requests (i.e. timeout)
-            - num_values: number of values to retrieve (default: 1)
+
+            Parameters
+            ----------
+            max_requests : int
+                Effective timeout: number of attempts after which None is returned
+
+            Returns
+            -------
+            tuple (timestamp, co2, temperature)
+            or
+            pandas.DataFrame indexed with timestamp
+                Results of measurements
         """
         if self._keep_monitoring:
             if pd is None:
@@ -196,7 +238,13 @@ class CO2monitor:
     def start_monitoring(self, interval=5):
         """ Start continuous monitoring of the values and collecting them
             in the list / pandas.DataFrame.
-            - Interval: defines interval between consecutive reads in seconds.
+            The monitoring is started in a separate thread, so the current
+            interpreter session is not blocked.
+
+            Parameters
+            ----------
+            interval : float
+                Interval in seconds between consecutive data reads
         """
         self._keep_monitoring = True
         self._interval = interval
