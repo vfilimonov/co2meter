@@ -113,7 +113,7 @@ class CO2monitor:
         # XOR with magic_table
         res = msg ^ self._magic_table_int
         # Cyclic shift by 3 to the right
-        res = (res>>3) | ((res<<61) & 0xFFFFFFFFFFFFFFFF)
+        res = (res >> 3) | ((res << 61) & 0xFFFFFFFFFFFFFFFF)
         # Convert to list
         res = longint_to_list(res)
         # Subtract and convert to uint8
