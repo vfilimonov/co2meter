@@ -39,7 +39,7 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 
 ## Usage
 
-#### Basic use
+### Basic use
 
 The interface is implemented as a class:
 
@@ -56,7 +56,7 @@ Read CO2 and temperature values from the device with the timestamp:
 	
 If `pandas` is available, the output will be formated as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be retured.
 
-#### Continuous monitoring
+### Continuous monitoring
 
 The library uses `threading` module to keep continuous monitoring of the data in the background and storing it in the internal buffer. The following command starts the thread which will listen to new values every 10 seconds:
 
@@ -74,9 +74,30 @@ The following command stops the background thread, when it is not needed anymore
 
 	mon.stop_monitoring()
 
+### Plotting data
+
+The data that was logged to CSV file could be read usig function `read_csv()`:
+
+	old_data = co2.read_csv('log_co2.csv')
+	
+CO2 and temperature data could be plotted using `matplotlib` package with the function `plot()` of the module:
+
+	co2.plot(old_data)
+	
+Or the following command will plot CO2 data together with the temperature from the internal buffer (see "continuous monitoring"):
+
+	co2.plot(mon.data, plot_temp=True)
+	
+By default all data is smoothed using Exponentially Weighted Moving Average with half-life of approximately 30 seconds. This parameter could be changed, or smoothing could be switched off (parameter set to `None`):
+
+	co2.plot(mon.data, plot_temp=True, ewma_halflife=None)
+	
+Note, that both plotting and reading CSV files requires `pandas` package to be installed.
+
+
 ## Notes
 
-* The output from the device is encrypted. I've found no description of the algorythm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). The code in this repository is based on the repos above, but made a little bit more readable (method `_decrypt(self)`).
+* The output from the device is encrypted. I've found no description of the algorythm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above, but made slightly more readable (method `CO2monitor._decrypt()`).
 
 ## Resources
 
