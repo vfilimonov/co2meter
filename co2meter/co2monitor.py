@@ -247,8 +247,11 @@ class CO2monitor:
             interval : float
                 Interval in seconds between consecutive data reads
         """
-        self._keep_monitoring = True
         self._interval = interval
+        if self._keep_monitoring:
+            # If already started then we should not start a new thread
+            return
+        self._keep_monitoring = True
         t = threading.Thread(target=self._monitoring)
         t.start()
 
