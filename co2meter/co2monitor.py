@@ -9,6 +9,11 @@ from contextlib import contextmanager
 import threading
 import time
 import os
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 try:
     import pandas as pd
 except ImportError:
@@ -22,6 +27,13 @@ _CO2MON_MAGIC_TABLE = (0, 0, 0, 0, 0, 0, 0, 0)
 _CODE_END_MESSAGE = 0x0D
 _CODE_CO2 = 0x50
 _CODE_TEMPERATURE = 0x42
+
+_COLORS = {'r': (0.86, 0.37, 0.34),
+           'g': (0.56, 0.86, 0.34),
+           'b': 'b'}
+
+CO2_HIGH = 1200
+CO2_LOW = 800
 
 
 #############################################################################
@@ -290,3 +302,82 @@ class CO2monitor:
                 self._data[self._data.index > last].to_csv(f, header=False)
         else:
             self._data.to_csv(fname)
+
+
+#############################################################################
+def read_csv(fname):
+    """ Read data from CSV file.
+
+        Parameters
+        ----------
+        fname : string
+            Filename
+    """
+    if pd is None:
+        raise NotImplementedError('Reading CSV files is implemented '
+                                  'using pandas package only (so far)')
+    return pd.read_csv(fname, index_col=0, parse_dates=0)
+
+
+#############################################################################
+def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
+    """ Plot recorded data
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Data indexed by timestamps. Should have columns 'co2' and 'temp'
+        plot_temp : bool
+            If True temperature will be also plotted
+        ewma_halflife : float
+            If specified (not None) data will be smoothed using EWMA
+    """
+    if plt is None:
+        raise Exception('For plotting matplotlib is required')
+    if pd is None:
+        raise NotImplementedError('Plotting is implemented '
+                                  'using pandas package only (so far)')
+
+    # DataFrames
+    if (ewma_halflife is not None) and (ewma_halflife > 0):
+        halflife = pd.Timedelta(ewma_halflife, 's') / pd.np.mean(pd.np.diff(data.index))
+        co2 = pd.ewma(data.co2, halflife=halflife, min_periods=0)
+        temp = pd.ewma(data.temp, halflife=2*halflife, min_periods=0)
+    else:
+        co2 = data.co2
+        temp = data.temp
+
+
+    co2_r = co2.copy()
+    co2_g = co2.copy()
+    co2_r[co2_r <= CO2_HIGH] = pd.np.NaN
+    co2_g[co2_g >= CO2_LOW] = pd.np.NaN
+
+    # Plotting
+    ax = kwargs.pop('ax', plt.gca())
+
+    ax.fill_between(co2_r.index, co2_r.values, CO2_HIGH,
+                    alpha=0.5, color=_COLORS['r'])
+    ax.fill_between(co2_g.index, co2_g.values, CO2_LOW,
+                    alpha=0.5, color=_COLORS['g'])
+
+    ax.axhline(CO2_LOW, color=_COLORS['g'], lw=2, ls='--')
+    ax.axhline(CO2_HIGH, color=_COLORS['r'], lw=2, ls='--')
+
+    ax.plot(co2.index, co2.values, lw=2, color='k')
+
+    yl = ax.get_ylim()
+    ax.set_ylim([min(600, yl[0]), max(1400, yl[1])])
+    ax.set_ylabel('CO2 concentration, ppm')
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0,
+             horizontalalignment='center')
+
+    if plot_temp:
+        ax2 = ax.twinx()
+        ax2.plot(temp.index, temp.values, color=_COLORS['b'])
+        ax2.set_ylabel('Temperature, C')
+        yl = ax2.get_ylim()
+        ax2.set_ylim([min(19, yl[0]), max(23, yl[1])])
+        ax2.grid('off')
+
+    plt.tight_layout()
