@@ -9,14 +9,14 @@ LONG_DESCRIPTION = """
 **CO2meter** is a Python library for USB CO2 meter.
 """
 
-setup(name = 'CO2meter',
+setup(name='CO2meter',
       version=__version__,
-      description = 'Python interface to the USB CO2 monitor',
+      description='Python interface to the USB CO2 monitor',
       url=GITHUB_URL,
-      download_url=GITHUB_URL + '/archive/v%s.zip'%(__version__),
-      author = 'Vladimir Filimonov',
-      author_email = 'vladimir.a.filimonov@gmail.com',
-      license = 'MIT License',
-      packages = ['co2meter'],
-      install_requires = ['hid']
-     )
+      download_url=GITHUB_URL + '/archive/v%s.zip' % (__version__),
+      author='Vladimir Filimonov',
+      author_email='vladimir.a.filimonov@gmail.com',
+      license='MIT License',
+      packages=['co2meter'],
+      install_requires=['hid']
+      )

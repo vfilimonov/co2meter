@@ -38,7 +38,7 @@ CO2_LOW = 800
 
 #############################################################################
 def list_to_longint(x):
-    return sum([val << (i*8) for i, val in enumerate(x[::-1])])
+    return sum([val << (i * 8) for i, val in enumerate(x[::-1])])
 
 
 #############################################################################
@@ -152,7 +152,7 @@ class CO2monitor:
         # Convert to list
         res = longint_to_list(res)
         # Subtract and convert to uint8
-        res = [(r-mw) & 0xFF for r, mw in zip(res, self._magic_word)]
+        res = [(r - mw) & 0xFF for r, mw in zip(res, self._magic_word)]
         return res
 
     @staticmethod
@@ -342,11 +342,10 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
     if (ewma_halflife is not None) and (ewma_halflife > 0):
         halflife = pd.Timedelta(ewma_halflife, 's') / pd.np.mean(pd.np.diff(data.index))
         co2 = pd.ewma(data.co2, halflife=halflife, min_periods=0)
-        temp = pd.ewma(data.temp, halflife=2*halflife, min_periods=0)
+        temp = pd.ewma(data.temp, halflife=2 * halflife, min_periods=0)
     else:
         co2 = data.co2
         temp = data.temp
-
 
     co2_r = co2.copy()
     co2_g = co2.copy()

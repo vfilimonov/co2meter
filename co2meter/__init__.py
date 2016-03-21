@@ -2,4 +2,3 @@
 
 from co2meter import *
 from ._version import __version__
-
