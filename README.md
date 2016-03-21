@@ -30,12 +30,12 @@ TODO
 First install `pid` package:
 
 	pip install hid
-	
+
 Then installation of `co2meter` could be done via the same `pip` utility:
 
 	pip install co2meter
 
-Optionally, if [pandas package](http://pandas.pydata.org/) is available then the data will be retrieved as pandas.DataFrames rather than list of tuples. 
+Optionally, if [pandas package](http://pandas.pydata.org/) is available then the data will be retrieved as pandas.DataFrames rather than list of tuples.
 
 ## Usage
 
@@ -43,9 +43,9 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 
 The interface is implemented as a class:
 
-	import co2monitor as co2
+	import co2meter as co2
 	co2mon = co2.CO2monitor()
-	
+
 Standard info of the device which is connected:
 
 	mon.info
@@ -53,23 +53,23 @@ Standard info of the device which is connected:
 Read CO2 and temperature values from the device with the timestamp:
 
 	mon.read_data()
-	
+
 If `pandas` is available, the output will be formated as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be retured.
 
 ### Continuous monitoring
 
 The library uses `threading` module to keep continuous monitoring of the data in the background and storing it in the internal buffer. The following command starts the thread which will listen to new values every 10 seconds:
 
-	mon.start_monitoring(interval=10)	
+	mon.start_monitoring(interval=10)
 
-After this command, python will be free to execute other code in a usual way, and new data will be retrieved in the background (parallel thread) and stored in an internal property `data`. This property will be constantly updated and the data could be retrieved at any point. For example, if `pandas` is available, then the following command will plot saved CO2 and temperature data 
-	
+After this command, python will be free to execute other code in a usual way, and new data will be retrieved in the background (parallel thread) and stored in an internal property `data`. This property will be constantly updated and the data could be retrieved at any point. For example, if `pandas` is available, then the following command will plot saved CO2 and temperature data
+
 	mon.data.plot(secondary_y='temp')
-	
+
 The data could be at any point logged to CSV file (NB! `pandas` required). If the file already exists, then only new data (i.e. with timestamps later than the one recorded in the last line) will be appened to the end of file:
 
 	mon.log_data_to_csv('log_co2.csv')
-	
+
 The following command stops the background thread, when it is not needed anymore:
 
 	mon.stop_monitoring()
@@ -79,19 +79,19 @@ The following command stops the background thread, when it is not needed anymore
 The data that was logged to CSV file could be read usig function `read_csv()`:
 
 	old_data = co2.read_csv('log_co2.csv')
-	
+
 CO2 and temperature data could be plotted using `matplotlib` package with the function `plot()` of the module:
 
 	co2.plot(old_data)
-	
+
 Or the following command will plot CO2 data together with the temperature from the internal buffer (see "continuous monitoring"):
 
 	co2.plot(mon.data, plot_temp=True)
-	
+
 By default all data is smoothed using Exponentially Weighted Moving Average with half-life of approximately 30 seconds. This parameter could be changed, or smoothing could be switched off (parameter set to `None`):
 
 	co2.plot(mon.data, plot_temp=True, ewma_halflife=None)
-	
+
 Note, that both plotting and reading CSV files requires `pandas` package to be installed.
 
 
