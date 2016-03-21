@@ -5,31 +5,31 @@ CO2meter is a Python interface to the USB CO2 monitor.
 
 ## Installation
 
-Preprequisites are libraries (1) `libusb`, `hidapi` and (2) Python package `hid`.
+### Prerequisites
 
-#### 1a. OSX
+Note that the package has been tested undex OSX only
 
-Necessarry libraries could be installed via [Homebrew](http://brew.sh/):
+##### OSX
+
+Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
 
 	brew install libusb hidapi
 
-#### 1b. Linux (NB! not tested)
+##### Linux / Ubuntu
 
-In Ubunti, `libusb` could be retrieved via `apt-get`
+In Ubuntu, `libusb` could be retrieved via `apt-get`
 
 	sudo apt-get install libusb-1.0-0-dev
 
-TODO
+##### Windows
 
-#### 1c. Windows (NB! not tested)
+For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
-TODO
+### 2. Installation of python package
 
-#### 2. Installation of python package
+First install `hidapi` package:
 
-First install `pid` package:
-
-	pip install hid
+	pip install hidapi
 
 Then installation of `co2meter` could be done via the same `pip` utility:
 
@@ -111,7 +111,7 @@ Useful websites:
 Scientific and commercial infographics:
 
 
-* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. [Original research paper *U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/):
+* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. [Original research paper *U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/) (image below from the feature story might not be rendered well on GitHub):
 ![Impact of CO2 on human decision making process](https://newscenter.lbl.gov/wp-content/uploads/sites/2/2012/10/CO2-Figure2.png)
 * Commercial infographics on CO2 concentration and indoor air quality ([from tester.co.uk](http://www.tester.co.uk/extech-co220-co2-air-quality-monitor)):
 ![CO2 concentration and indoor air quality](http://www.tester.co.uk/media/wysiwyg/ted/product/extech-co220-co2-concentration.jpg)
