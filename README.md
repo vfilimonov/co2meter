@@ -27,15 +27,13 @@ For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2
 
 ### 2. Installation of python package
 
-First install `hidapi` package:
+Then installation of `co2meter` could be done via the `pip` utility:
 
-	pip install hidapi
-
-Then installation of `co2meter` could be done via the same `pip` utility:
-
-	pip install co2meter
+	pip install hidapi co2meter
 
 Optionally, if [pandas package](http://pandas.pydata.org/) is available then the data will be retrieved as pandas.DataFrames rather than list of tuples.
+
+Please note, that there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
 
 ## Usage
 
@@ -44,7 +42,7 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 The interface is implemented as a class:
 
 	import co2meter as co2
-	co2mon = co2.CO2monitor()
+	mon = co2.CO2monitor()
 
 Standard info of the device which is connected:
 

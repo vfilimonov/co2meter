@@ -1,9 +1,18 @@
 """ Class for reading data from CO2 monitor.
 
-    (c) Vladimir Filimonov, 2016
+    (c) Vladimir Filimonov, 2016-2017
     E-mail: vladimir.a.filimonov@gmail.com
 """
-import hid
+try:
+    import hid
+except AttributeError, e:
+    if 'windll' in e.message:
+        raise ImportError(('Import failed with an error "AttributeError: %s". '
+                           'Possibly there''s a name conflict. Please check if '
+                           'library "hid" is instlled and if so - uninstall it, '
+                           'keeping only "hidapi".' % str(e)))
+    else:
+        raise
 import datetime as dt
 from contextlib import contextmanager
 import threading
@@ -12,7 +21,7 @@ import os
 
 try:
     import matplotlib.pyplot as plt
-except ImportError:
+except (ImportError, RuntimeError):
     plt = None
 try:
     import pandas as pd
