@@ -5,7 +5,7 @@
 """
 try:
     import hid
-except AttributeError, e:
+except AttributeError as e:
     if 'windll' in e.message:
         raise ImportError(('Import failed with an error "AttributeError: %s". '
                            'Possibly there''s a name conflict. Please check if '
@@ -30,7 +30,7 @@ except ImportError:
 
 _CO2MON_HID_VENDOR_ID = 0x04d9
 _CO2MON_HID_PRODUCT_ID = 0xa052
-_CO2MON_MAGIC_WORD = 'Htemp99e'
+_CO2MON_MAGIC_WORD = b'Htemp99e'
 _CO2MON_MAGIC_TABLE = (0, 0, 0, 0, 0, 0, 0, 0)
 
 _CODE_END_MESSAGE = 0x0D
