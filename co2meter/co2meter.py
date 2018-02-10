@@ -19,10 +19,7 @@ import threading
 import time
 import os
 
-try:
-    import matplotlib.pyplot as plt
-except (ImportError, RuntimeError):
-    plt = None
+plt = None  # To be imported on demand only
 try:
     import pandas as pd
 except ImportError:
@@ -341,11 +338,14 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
         ewma_halflife : float
             If specified (not None) data will be smoothed using EWMA
     """
+    global plt
     if plt is None:
-        raise Exception('For plotting matplotlib is required')
+        import matplotlib.pyplot as _plt
+        plt = _plt
+
     if pd is None:
-        raise NotImplementedError('Plotting is implemented '
-                                  'using pandas package only (so far)')
+        raise NotImplementedError('Plotting is implemented so far '
+                                  'using pandas package only')
 
     # DataFrames
     if (ewma_halflife is not None) and (ewma_halflife > 0):
