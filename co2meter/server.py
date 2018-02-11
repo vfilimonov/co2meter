@@ -44,10 +44,10 @@ app = flask.Flask(__name__)
 def home():
     data = read_logs(log=False, sessions=True)
     vals = data.split('\n')[-2].split(',')
-    return ('<h1>CO2 monitoring server</h1> <font size="+2">'
-            '%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
-            '<br><br><a href="/session">Current session</a> (<a href="/session.csv">csv</a>)'
-            '<br><a href="/log">Full log</a> (<a href="/log.csv">csv</a>)'
+    return ('<h1>CO2 monitoring server</h1>'
+            '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
+            '<br><br><a href="/session">Current session</a> (<a href="/session.csv">csv</a>,&nbsp;<a href="/session.json">json</a>)'
+            '<br><a href="/log">Full log</a> (<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
             '<br><a href="/dashboard">Dashboard</a>'
             '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
             % (vals[0], vals[1], vals[2], _URL, _URL))
@@ -68,17 +68,26 @@ def session():
 
 
 #############################################################################
-@app.route('/log.csv')
-def log_csv():
-    data = read_logs(log=True, sessions=True)
-    return wrap_csv(data, 'log.csv')
+@app.route('/<string:name>.csv')
+def get_csv(name):
+    if name.lower() == 'log':
+        data = read_logs(log=True, sessions=True)
+    elif name.lower() == 'session':
+        data = read_logs(log=False, sessions=True)
+    else:
+        return 'Error: unknown file'
+    return wrap_csv(data, name + '.csv')
 
 
-@app.route('/session.csv')
-def session_csv():
-    # Since we've done a clean-up at start, there should be only one log_*.csv
-    data = read_logs(log=False, sessions=True)
-    return wrap_csv(data, 'session.csv')
+@app.route('/<string:name>.json')
+def get_json(name):
+    if name.lower() == 'log':
+        data = read_logs(log=True, sessions=True)
+    elif name.lower() == 'session':
+        data = read_logs(log=False, sessions=True)
+    else:
+        return 'Error: unknown file'
+    return wrap_json(data)
 
 
 #############################################################################
@@ -108,8 +117,8 @@ if dash is not None:
     def prepare_graph():
         data = read_logs(log=True, sessions=True)
         data = pd.read_csv(StringIO(data), parse_dates=[0])
-        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.2,
-                                         print_grid=False)
+        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0,
+                                         print_grid=False, shared_xaxes=True)
         fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 10}
         fig['layout']['legend'] = {'x': 0, 'y': 1, 'xanchor': 'left'}
         fig.append_trace({
@@ -193,8 +202,8 @@ def start_monitor(interval=_DEFAULT_INTERVAL):
 #############################################################################
 # Server routines
 #############################################################################
-def server_start(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
-                 default_interval=_DEFAULT_INTERVAL):
+def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
+            default_interval=_DEFAULT_INTERVAL):
     """ Runs Flask instance using command line arguments """
     # Based on http://flask.pocoo.org/snippets/133/
     parser = optparse.OptionParser()
@@ -207,11 +216,26 @@ def server_start(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
     parser.add_option("-I", "--interval",
                       help="Interval in seconds for CO2meter requests [default %d]" % default_interval,
                       default=default_interval)
+    parser.add_option("-d", "--debug",
+                      action="store_true", dest="debug",
+                      help=optparse.SUPPRESS_HELP)
+    parser.add_option("-m", "--nomonitoring",
+                      help="No live monitoring (only flask server)",
+                      action="store_true", dest="no_monitoring")
+    parser.add_option("-s", "--noserver",
+                      help="No server (only monitoring to file)",
+                      action="store_true", dest="no_server")
     options, _ = parser.parse_args()
 
     # start monitoring and server
-    start_monitor(interval=int(options.interval))
-    app.run(host=options.host, port=int(options.port))
+    if not options.no_monitoring:
+        start_monitor(interval=int(options.interval))
+    if not options.no_server:
+        app.run(host=options.host, port=int(options.port), debug=options.debug)
+
+
+def server_start():
+    run_app(app)
 
 
 def server_stop():
@@ -221,13 +245,23 @@ def server_stop():
     func()
 
 
+###############################################################################
 def wrap_csv(data, fname='output.csv'):
-    """ Make response downloadable """
+    """ Make CSV response downloadable """
     si = StringIO(data)
     output = flask.make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=%s" % fname
     output.headers["Content-type"] = "text/csv"
     return output
+
+
+def wrap_json(data):
+    """ Convert CSV to JSON and make it downloadable """
+    entries = [_.split(',') for _ in data.split('\n') if _ != '']
+    js = {'timestamp': [_[0] for _ in entries[1:]],
+          'co2': [int(_[1]) for _ in entries[1:]],
+          'temp': [float(_[2]) for _ in entries[1:]]}
+    return flask.jsonify(js)
 
 
 def wrap_table(data):
@@ -242,5 +276,5 @@ def wrap_table(data):
 
 ###############################################################################
 if __name__ == '__main__':
-    # start_monitor()  # start_server() will take care of that
-    server_start(app)
+    # start_server() will take care of start_monitor()
+    server_start()
