@@ -16,11 +16,22 @@ except ImportError:
 
 import flask
 
+try:
+    import dash
+    import dash_core_components as dcc
+    import dash_html_components as html
+    from dash.dependencies import Output, Event, Input
+    import pandas as pd
+    import plotly
+except ImportError:
+    dash = None
+
 import co2meter as co2
 
 _LOCALHOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
 _DEFAULT_INTERVAL = 5  # seconds
+_DASH_INTERVAL = 30000  # milliseconds
 _LOG_CSV = 'co2_log.csv'
 _URL = 'https://github.com/vfilimonov/co2meter'
 
@@ -35,6 +46,9 @@ def home():
     vals = data.split('\n')[-2].split(',')
     return ('<h1>CO2 monitoring server</h1> <font size="+2">'
             '%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
+            '<br><br><a href="/session">Current session</a> (<a href="/session.csv">csv</a>)'
+            '<br><a href="/log">Full log</a> (<a href="/log.csv">csv</a>)'
+            '<br><a href="/dashboard">Dashboard</a>'
             '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
             % (vals[0], vals[1], vals[2], _URL, _URL))
 
@@ -77,6 +91,50 @@ def shutdown():
 
 
 #############################################################################
+# Dash sever
+#############################################################################
+if dash is not None:
+    app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard')
+
+    page = [
+        html.H2(children='CO2 monitor dashboard'),
+        html.Div(id='contents'),
+        dcc.Graph(id='temp-graph'),
+        dcc.Interval(id='interval-component', interval=_DASH_INTERVAL, n_intervals=0),
+    ]
+    app_dash.layout = html.Div(children=page)
+
+    #########################################################################
+    def prepare_graph():
+        data = read_logs(log=True, sessions=True)
+        data = pd.read_csv(StringIO(data), parse_dates=[0])
+        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.2,
+                                         print_grid=False)
+        fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 10}
+        fig['layout']['legend'] = {'x': 0, 'y': 1, 'xanchor': 'left'}
+        fig.append_trace({
+            'x': data['timestamp'],
+            'y': data['co2'],
+            'name': 'CO2 concentration',
+            'mode': 'lines+markers',
+            'type': 'scatter'
+        }, 1, 1)
+        fig.append_trace({
+            'x': data['timestamp'],
+            'y': data['temp'],
+            'name': 'Temperature',
+            'mode': 'lines+markers',
+            'type': 'scatter'
+        }, 2, 1)
+        return fig
+
+    @app_dash.callback(Output('temp-graph', 'figure'),
+                       [Input('interval-component', 'n_intervals')])
+    def update_graph(n):
+        return prepare_graph()
+
+
+#############################################################################
 # Monitoring routines
 #############################################################################
 def read_logs(log=True, sessions=True):
@@ -102,7 +160,7 @@ def monitoring_CO2(mon, interval, fname):
         while _monitoring:
             # Request concentration and temperature
             vals = mon._read_co2_temp(max_requests=1000)
-            print(vals)
+            # print(vals)
 
             # Append to file
             with open(fname, 'a') as f:
