@@ -35,6 +35,12 @@ _DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
 
+_SPANS = [{'label': 'Last hour', 'value': '1H'},
+          {'label': 'Last day', 'value': '24H'},
+          {'label': 'Last week', 'value': '7D'},
+          {'label': 'Last month', 'value': '30D'},
+          {'label': 'Full log', 'value': ''}]
+
 ###############################################################################
 app = flask.Flask(__name__)
 
@@ -90,31 +96,63 @@ def shutdown():
 if dash is not None:
     app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard')
 
-    page = [
-        html.H2(children='CO2 monitor dashboard'),
-        html.Div(id='contents'),
-        dcc.Graph(id='temp-graph'),
-        dcc.Interval(id='interval-component', interval=_DASH_INTERVAL, n_intervals=0),
-    ]
-    app_dash.layout = html.Div(children=page)
+    def dash_layout():
+        # Get list of files
+        files = glob.glob('logs/*.csv')
+        files = [os.path.splitext(os.path.basename(_))[0] for _ in files]
+        files = [{'label': _, 'value': _} for _ in files]
+        global _name
+        try:
+            fn = _name
+        except NameError:
+            fn = files[0]['value']
+
+        dd_name = dcc.Dropdown(id='name-dropdown', value=fn, options=files,
+                               clearable=False, searchable=False)
+        dd_span = dcc.Dropdown(id='span-dropdown', value='24H', options=_SPANS,
+                               clearable=False, searchable=False)
+
+        # return layout
+        ST = {'float': 'left', 'width': '25%'}
+        page = [
+            html.H2(children='CO2 monitor dashboard'),
+            html.Div(children=[html.Div([dd_name], style=ST, id='div-dd-name'),
+                               html.Div([dd_span], style=ST, id='div-dd-span'),
+                               ], id='controls', style={'height': '40px'}),
+            dcc.Graph(id='temp-graph'),
+            dcc.Interval(id='interval-component', interval=_DASH_INTERVAL, n_intervals=0),
+        ]
+        return html.Div(children=page)
+
+    app_dash.layout = dash_layout
 
     #########################################################################
-    def prepare_graph():
-        data = read_logs()
-        data = pd.read_csv(StringIO(data), parse_dates=[0])
+    def prepare_graph(name=None, span='24H'):
+        data = read_logs(name)
+        data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
+        if span != '':
+            data = data.last(span)
+
+        if span == '24H':
+            data = data.resample('60s').mean()
+        elif span == '7D':
+            data = data.resample('600s').mean()
+        elif span == '30D' or span == '':
+            data = data.resample('1H').mean()
+
         fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0,
                                          print_grid=False, shared_xaxes=True)
         fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 10}
         fig['layout']['legend'] = {'x': 0, 'y': 1, 'xanchor': 'left'}
         fig.append_trace({
-            'x': data['timestamp'],
+            'x': data.index,
             'y': data['co2'],
             'name': 'CO2 concentration',
             'mode': 'lines+markers',
             'type': 'scatter'
         }, 1, 1)
         fig.append_trace({
-            'x': data['timestamp'],
+            'x': data.index,
             'y': data['temp'],
             'name': 'Temperature',
             'mode': 'lines+markers',
@@ -123,9 +161,12 @@ if dash is not None:
         return fig
 
     @app_dash.callback(Output('temp-graph', 'figure'),
-                       [Input('interval-component', 'n_intervals')])
-    def update_graph(n):
-        return prepare_graph()
+                       [Input('interval-component', 'n_intervals'),
+                        Input('name-dropdown', 'value'),
+                        Input('span-dropdown', 'value'),
+                        ])
+    def update_graph(n, name, span):
+        return prepare_graph(name, span)
 
 
 #############################################################################
