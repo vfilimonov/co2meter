@@ -30,9 +30,9 @@ import co2meter as co2
 
 _LOCALHOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
-_DEFAULT_INTERVAL = 5  # seconds
+_DEFAULT_INTERVAL = 30  # seconds
 _DASH_INTERVAL = 30000  # milliseconds
-_LOG_CSV = 'co2_log.csv'
+_DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
 
 ###############################################################################
@@ -42,51 +42,36 @@ app = flask.Flask(__name__)
 ###############################################################################
 @app.route('/')
 def home():
-    data = read_logs(log=False, sessions=True)
+    data = read_logs()
     vals = data.split('\n')[-2].split(',')
     return ('<h1>CO2 monitoring server</h1>'
             '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
-            '<br><br><a href="/session">Current session</a> (<a href="/session.csv">csv</a>,&nbsp;<a href="/session.json">json</a>)'
-            '<br><a href="/log">Full log</a> (<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
+            '<br><br><a href="/log">Data log</a> '
+            '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
             '<br><a href="/dashboard">Dashboard</a>'
             '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
             % (vals[0], vals[1], vals[2], _URL, _URL))
 
 
 #############################################################################
-@app.route('/log')
-def log():
-    data = read_logs(log=True, sessions=True)
+@app.route('/log', defaults={'logname': None})
+@app.route('/log/<string:logname>')
+def log(logname):
+    data = read_logs(name=logname)
     return '<h1>Full log</h1>' + wrap_table(data)
 
 
-@app.route('/session')
-def session():
-    # Since we've done a clean-up at start, there should be only one log_*.csv
-    data = read_logs(log=False, sessions=True)
-    return '<h1>Current session</h1>' + wrap_table(data)
+@app.route('/log.csv', defaults={'logname': None})
+@app.route('/log/<string:logname>.csv')
+def log_csv(logname):
+    data = read_logs(name=logname)
+    return wrap_csv(data, logname)
 
 
-#############################################################################
-@app.route('/<string:name>.csv')
-def get_csv(name):
-    if name.lower() == 'log':
-        data = read_logs(log=True, sessions=True)
-    elif name.lower() == 'session':
-        data = read_logs(log=False, sessions=True)
-    else:
-        return 'Error: unknown file'
-    return wrap_csv(data, name + '.csv')
-
-
-@app.route('/<string:name>.json')
-def get_json(name):
-    if name.lower() == 'log':
-        data = read_logs(log=True, sessions=True)
-    elif name.lower() == 'session':
-        data = read_logs(log=False, sessions=True)
-    else:
-        return 'Error: unknown file'
+@app.route('/log.json', defaults={'logname': None})
+@app.route('/log/<string:logname>.json')
+def log_json(logname):
+    data = read_logs(name=logname)
     return wrap_json(data)
 
 
@@ -115,7 +100,7 @@ if dash is not None:
 
     #########################################################################
     def prepare_graph():
-        data = read_logs(log=True, sessions=True)
+        data = read_logs()
         data = pd.read_csv(StringIO(data), parse_dates=[0])
         fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0,
                                          print_grid=False, shared_xaxes=True)
@@ -146,19 +131,13 @@ if dash is not None:
 #############################################################################
 # Monitoring routines
 #############################################################################
-def read_logs(log=True, sessions=True):
+def read_logs(name=None):
     """ read log files """
-    data = 'timestamp,co2,temp\n'
-    if log:
-        try:
-            with open(_LOG_CSV, 'r') as f:
-                data += f.read()
-        except FileNotFoundError:
-            pass
-    if sessions:
-        for fn in sorted(glob.iglob('log_*.csv')):
-            with open(fn, 'r') as f:
-                data += f.read()
+    if name is None:
+        global _name
+        name = _name
+    with open(os.path.join('logs', name + '.csv'), 'r') as f:
+        data = f.read()
     return data
 
 
@@ -169,7 +148,7 @@ def monitoring_CO2(mon, interval, fname):
         while _monitoring:
             # Request concentration and temperature
             vals = mon._read_co2_temp(max_requests=1000)
-            # print(vals)
+            print(vals)
 
             # Append to file
             with open(fname, 'a') as f:
@@ -180,19 +159,13 @@ def monitoring_CO2(mon, interval, fname):
 
 
 #############################################################################
-def start_monitor(interval=_DEFAULT_INTERVAL):
+def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     """ Start CO2 monitoring in a thread """
-    # Clean-up logs
-    with open(_LOG_CSV, 'a') as log:
-        for fn in sorted(glob.iglob('log_*.csv')):
-            print('Appending: %s -> %s' % (fn, _LOG_CSV))
-            with open(fn, 'r') as f:
-                log.write(f.read())
-            os.remove(fn)
-
-    # Start monitoring in a thread
     mon = co2.CO2monitor()
-    fname = 'log_%d.csv' % (time.time())
+    fname = os.path.join('logs', name + '.csv')
+    if not os.path.isfile(fname):
+        with open(fname, 'a') as f:
+            f.write('timestamp,co2,temp\n')
     global _monitoring
     _monitoring = True
     t = threading.Thread(target=monitoring_CO2, args=(mon, interval, fname))
@@ -203,7 +176,7 @@ def start_monitor(interval=_DEFAULT_INTERVAL):
 # Server routines
 #############################################################################
 def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
-            default_interval=_DEFAULT_INTERVAL):
+            default_interval=_DEFAULT_INTERVAL, default_name=_DEFAULT_NAME):
     """ Runs Flask instance using command line arguments """
     # Based on http://flask.pocoo.org/snippets/133/
     parser = optparse.OptionParser()
@@ -216,6 +189,9 @@ def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
     parser.add_option("-I", "--interval",
                       help="Interval in seconds for CO2meter requests [default %d]" % default_interval,
                       default=default_interval)
+    parser.add_option("-N", "--name",
+                      help="Name for the log file [default %s]" % default_name,
+                      default=default_name)
     parser.add_option("-d", "--debug",
                       action="store_true", dest="debug",
                       help=optparse.SUPPRESS_HELP)
@@ -227,9 +203,13 @@ def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
                       action="store_true", dest="no_server")
     options, _ = parser.parse_args()
 
+    # Name for the current session
+    global _name
+    _name = options.name
+
     # start monitoring and server
     if not options.no_monitoring:
-        start_monitor(interval=int(options.interval))
+        start_monitor(name=options.name, interval=int(options.interval))
     if not options.no_server:
         app.run(host=options.host, port=int(options.port), debug=options.debug)
 
@@ -246,11 +226,13 @@ def server_stop():
 
 
 ###############################################################################
-def wrap_csv(data, fname='output.csv'):
+def wrap_csv(data, fname='output'):
     """ Make CSV response downloadable """
+    if fname is None:
+        fname = 'log'
     si = StringIO(data)
     output = flask.make_response(si.getvalue())
-    output.headers["Content-Disposition"] = "attachment; filename=%s" % fname
+    output.headers["Content-Disposition"] = "attachment; filename=%s.csv" % fname
     output.headers["Content-type"] = "text/csv"
     return output
 
