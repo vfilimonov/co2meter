@@ -36,6 +36,8 @@ _DEFAULT_INTERVAL = 30  # seconds
 _DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
+_COLORS = {'r': '#FF4136', 'y': '#FFDC00', 'g': '#2ECC40'}
+_RANGE_MID = [800, 1200]
 
 _SPANS = [{'label': 'Last hour', 'value': '1H'},
           {'label': 'Last day', 'value': '24H'},
@@ -52,13 +54,20 @@ app = flask.Flask(__name__)
 def home():
     data = read_logs()
     vals = data.split('\n')[-2].split(',')
+    if int(vals[1]) >= _RANGE_MID[1]:
+        color = _COLORS['r']
+    elif int(vals[1]) < _RANGE_MID[0]:
+        color = _COLORS['g']
+    else:
+        color = _COLORS['y']
+    co2 = '<font color="%s">%s</font>' % (color, vals[1])
     return ('<h1>CO2 monitoring server</h1>'
             '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
             '<br><br><a href="/log">Data log</a> '
             '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
             '<br><a href="/dashboard">Dashboard</a>'
             '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
-            % (vals[0], vals[1], vals[2], _URL, _URL))
+            % (vals[0], co2, vals[2], _URL, _URL))
 
 
 #############################################################################
@@ -97,6 +106,7 @@ def shutdown():
 #############################################################################
 if dash is not None:
     app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard')
+    app_dash.title = 'CO2 monitor'
 
     def dash_layout():
         # Get list of files
@@ -110,14 +120,27 @@ if dash is not None:
         dd_span = dcc.Dropdown(id='span-dropdown', value='24H', options=_SPANS,
                                clearable=False, searchable=False)
 
+        # Check if mobile
+        try:
+            agent = flask.request.headers.get('User-Agent')
+            phones = ['iphone', 'android', 'blackberry', 'fennec', 'iemobile']
+            staticPlot = any(phone in agent.lower() for phone in phones)
+        except RuntimeError:
+            staticPlot = False
+
         # return layout
         ST = {'float': 'left', 'width': '25%'}
+        CFG = {'displayModeBar': False, 'queueLength': 0, 'staticPlot': staticPlot}
         page = [
             html.H2(children='CO2 monitor dashboard'),
             html.Div(children=[html.Div([dd_name], style=ST, id='div-dd-name'),
                                html.Div([dd_span], style=ST, id='div-dd-span'),
                                ], id='controls', style={'height': '40px'}),
-            dcc.Graph(id='temp-graph'),
+            html.Div(children=[dcc.Graph(id='temp-graph', config=CFG)],
+                     id='div-graph'),
+            #html.Div([html.P('<font size="-2" color="#DDDDDD">by Vladimir Filimonov</font>')]),
+            html.Div(style={'height': '10'}),
+            html.Div('by Vladimir Filimonov', style={'color': '#DDDDDD', 'fontSize': 14, 'text-align': 'right'}),
             dcc.Interval(id='interval-component', interval=_DASH_INTERVAL, n_intervals=0),
         ]
         return html.Div(children=page)
@@ -135,26 +158,52 @@ if dash is not None:
             data = data.resample('60s').mean()
         elif span == '7D':
             data = data.resample('600s').mean()
-        elif span == '30D' or span == '':
+        elif span == '30D':
             data = data.resample('1H').mean()
+        elif span == '':
+            if len(data) > 3000:  # Resample only long series
+                data = data.resample('1H').mean()
 
-        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0,
-                                         print_grid=False, shared_xaxes=True)
-        fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 10}
-        fig['layout']['legend'] = {'x': 0, 'y': 1, 'xanchor': 'left'}
+        co2_min = min(500, data['co2'].min() - 50)
+        co2_max = max(2000, data['co2'].max() + 50)
+
+        # x-span
+        rect_green = {'type': 'rect', 'layer': 'below',
+                      'xref': 'paper', 'x0': 0, 'x1': 1,
+                      'yref': 'y', 'y0': co2_min, 'y1': _RANGE_MID[0],
+                      'fillcolor': _COLORS['g'],
+                      'opacity': 0.2, 'line': {'width': 0},
+                      }
+        rect_yellow = dict(rect_green)
+        rect_yellow['y0'] = _RANGE_MID[0]
+        rect_yellow['y1'] = _RANGE_MID[1]
+        rect_yellow['fillcolor'] = _COLORS['y']
+        rect_red = dict(rect_green)
+        rect_red['y0'] = _RANGE_MID[1]
+        rect_red['y1'] = co2_max
+        rect_red['fillcolor'] = _COLORS['r']
+
+        # Make figure
+        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.1,
+                                         print_grid=False, shared_xaxes=True,
+                                         subplot_titles=('CO2 concentration', 'Temperature'))
+        fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 30}
+        fig['layout']['showlegend'] = False
+        fig['layout']['shapes'] = [rect_green, rect_yellow, rect_red]
         fig.append_trace({
             'x': data.index,
             'y': data['co2'],
-            'name': 'CO2 concentration',
             'mode': 'lines+markers',
-            'type': 'scatter'
+            'type': 'scatter',
+            'yaxis': {'range': [co2_min, co2_max]},
         }, 1, 1)
         fig.append_trace({
             'x': data.index,
             'y': data['temp'],
-            'name': 'Temperature',
             'mode': 'lines+markers',
-            'type': 'scatter'
+            'type': 'scatter',
+            'yaxis': {'range': [min(15, data['temp'].min()),
+                                max(27, data['temp'].max())]},
         }, 2, 1)
         return fig
 
