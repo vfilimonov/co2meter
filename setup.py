@@ -19,5 +19,11 @@ setup(name='CO2meter',
       author_email='vladimir.a.filimonov@gmail.com',
       license='MIT License',
       packages=['co2meter'],
-      install_requires=['hidapi']
+      install_requires=['hidapi', 'future'],
+      include_package_data=True,
+      entry_points={
+          'console_scripts': ['co2meter_server = co2meter.server:server_start'],
+      },
+      classifiers=['Programming Language :: Python :: 2',
+                   'Programming Language :: Python :: 3', ]
       )
