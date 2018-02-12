@@ -28,6 +28,8 @@ except ImportError:
 
 import co2meter as co2
 
+_name = 'co2log'
+
 _LOCALHOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
 _DEFAULT_INTERVAL = 30  # seconds
@@ -101,11 +103,7 @@ if dash is not None:
         files = glob.glob('logs/*.csv')
         files = [os.path.splitext(os.path.basename(_))[0] for _ in files]
         files = [{'label': _, 'value': _} for _ in files]
-        global _name
-        try:
-            fn = _name
-        except NameError:
-            fn = files[0]['value']
+        fn = _name
 
         dd_name = dcc.Dropdown(id='name-dropdown', value=fn, options=files,
                                clearable=False, searchable=False)
@@ -175,7 +173,6 @@ if dash is not None:
 def read_logs(name=None):
     """ read log files """
     if name is None:
-        global _name
         name = _name
     with open(os.path.join('logs', name + '.csv'), 'r') as f:
         data = f.read()
@@ -202,13 +199,17 @@ def monitoring_CO2(mon, interval, fname):
 #############################################################################
 def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     """ Start CO2 monitoring in a thread """
-    mon = co2.CO2monitor()
     fname = os.path.join('logs', name + '.csv')
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
     if not os.path.isfile(fname):
         with open(fname, 'a') as f:
             f.write('timestamp,co2,temp\n')
+
     global _monitoring
     _monitoring = True
+
+    mon = co2.CO2monitor()
     t = threading.Thread(target=monitoring_CO2, args=(mon, interval, fname))
     t.start()
 
