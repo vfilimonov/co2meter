@@ -60,9 +60,9 @@ def home():
         color = _COLORS['g']
     else:
         color = _COLORS['y']
-    co2 = '<font color="%s">%s</font>' % (color, vals[1])
+    co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
     return ('<h1>CO2 monitoring server</h1>'
-            '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s</font>'
+            '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s&#8451;</font>'
             '<br><br><a href="/log">Data log</a> '
             '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
             '<br><a href="/dashboard">Dashboard</a>'
@@ -235,7 +235,7 @@ def monitoring_CO2(mon, interval, fname):
         while _monitoring:
             # Request concentration and temperature
             vals = mon._read_co2_temp(max_requests=1000)
-            print(vals)
+            print('[%s] %d ppm, %.1f deg C' % tuple(vals))
 
             # Append to file
             with open(fname, 'a') as f:
