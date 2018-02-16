@@ -321,19 +321,19 @@ def start_server_homekit():
     t_homekit = start_homekit(mon=mon, host=options.host, port=int(options.port_homekit),
                               monitoring=False, handle_sigint=False)
 
-    # Register Ctrl-C Call-backs
-    def handle_control_c(*args, **kwargs):
-        logging.info('Shutting down homekit...')
-        t_homekit.signal_handler(*args, **kwargs)
-        logging.info('Shutting down monitoring...')
-        global _monitoring
-        _monitoring = False
-        time.sleep(2)
-        logging.info('Shutting down app...')
-        stop_server()  # Will raise and choke, but I don't know how to do this gracefully
-
-    signal.signal(signal.SIGINT, handle_control_c)
-    signal.signal(signal.SIGTERM, handle_control_c)
+    # # Register Ctrl-C Call-backs
+    # def handle_control_c(*args, **kwargs):
+    #     logging.info('Shutting down homekit...')
+    #     t_homekit.signal_handler(*args, **kwargs)
+    #     logging.info('Shutting down monitoring...')
+    #     global _monitoring
+    #     _monitoring = False
+    #     time.sleep(2)
+    #     logging.info('Shutting down flask server...')
+    #     import sys
+    #     sys.exit(0)
+    #
+    # signal.signal(signal.SIGINT, handle_control_c)
 
     # Start server
     app.run(host=options.host, port=int(options.port_flask))
