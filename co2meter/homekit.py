@@ -14,7 +14,8 @@ import co2meter as co2
 
 PORT = 51826
 PINCODE = b"800-11-400"
-NAME = "CO2 Monitor"
+NAME = 'CO2 Monitor'
+IDENTIFY = 'CO2Meter.py by Vladimir Filimonov'
 CO2_THRESHOLD = 1200
 
 
@@ -33,9 +34,9 @@ class CO2Accessory(Accessory):
             If monitor object is not passed, it will be created.
             freq defines interval in seconds between updating the values.
         """
-        super(CO2Accessory, self).__init__(NAME, **kwargs)
         self.monitor = co2.CO2monitor() if mon is None else mon
         self.frequency = freq
+        super(CO2Accessory, self).__init__(NAME, **kwargs)
 
     #########################################################################
     def temperature_changed(self, value):
@@ -48,21 +49,34 @@ class CO2Accessory(Accessory):
 
     #########################################################################
     def _set_services(self):
-        """ Add services to be supported.
-
+        """ Add services to be supported (called from __init__).
             A loader creates Service and Characteristic objects based on json
             representation such as the Apple-defined ones in pyhap/resources/.
         """
-        super(CO2Accessory, self)._set_services()
+        # This call sets AccessoryInformation, so we'll do this below
+        # super(CO2Accessory, self)._set_services()
+
         char_loader = loader.get_char_loader()
+        serv_loader = loader.get_serv_loader()
+
+        # Mandatory: Information about device
+        info = self.monitor.info
+        serv_info = serv_loader.get("AccessoryInformation")
+        serv_info.get_characteristic("Name").set_value(NAME, False)
+        serv_info.get_characteristic("Manufacturer").set_value(info['manufacturer'], False)
+        serv_info.get_characteristic("Model").set_value(info['product_name'], False)
+        serv_info.get_characteristic("SerialNumber").set_value(info['serial_no'], False)
+        serv_info.get_characteristic("Identify").set_value(IDENTIFY, False)
+        # Need to ensure AccessoryInformation is with IID 1
+        self.add_service(serv_info)
 
         # Temperature sensor: only mandatory characteristic
-        serv_temp = loader.get_serv_loader().get("TemperatureSensor")
+        serv_temp = serv_loader.get("TemperatureSensor")
         self.char_temp = serv_temp.get_characteristic("CurrentTemperature")
         serv_temp.add_characteristic(self.char_temp)
 
         # CO2 sensor: both mandatory and optional characteristic
-        serv_co2 = loader.get_serv_loader().get("CarbonDioxideSensor")
+        serv_co2 = serv_loader.get("CarbonDioxideSensor")
         self.char_high_co2 = serv_co2.get_characteristic("CarbonDioxideDetected")
         self.char_co2 = char_loader.get("CarbonDioxideLevel")
         serv_co2.add_characteristic(self.char_high_co2)
