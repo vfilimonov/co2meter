@@ -290,7 +290,11 @@ def my_ip():
 def start_server_homekit():
     """ Start monitoring, flask/dash server and homekit accessory """
     # Based on http://flask.pocoo.org/snippets/133/
-    from homekit import PORT, start_homekit
+    try:
+        from .homekit import PORT, start_homekit
+    except ModuleNotFoundError:
+        # the case of running not from the installed module
+        from homekit import PORT, start_homekit
 
     host = my_ip()
     parser = optparse.OptionParser()
