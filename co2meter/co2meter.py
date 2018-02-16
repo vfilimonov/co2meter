@@ -1,6 +1,6 @@
 """ Class for reading data from CO2 monitor.
 
-    (c) Vladimir Filimonov, 2016-2017
+    (c) Vladimir Filimonov, 2016-2018
     E-mail: vladimir.a.filimonov@gmail.com
 """
 try:
@@ -211,6 +211,12 @@ class CO2monitor:
         ts = dt.datetime.now().replace(microsecond=0)
         return ts, co2, temp
 
+    def read_data_raw(self, max_requests=50):
+        with self.co2hid(send_magic_table=True):
+            vals = self._read_co2_temp(max_requests=max_requests)
+            self._last_data = vals
+            return vals
+
     def read_data(self, max_requests=50):
         """ Listen to values from device and retrieve temperature and CO2.
 
@@ -232,9 +238,8 @@ class CO2monitor:
             else:
                 return self._data.iloc[[-1]]
         else:
-            with self.co2hid(send_magic_table=True):
-                vals = self._read_co2_temp(max_requests=max_requests)
-            # If pandas is accessible - return pandas.DataFrame
+            vals = self.read_data_raw(max_requests=max_requests)
+            # If pandas is available - return pandas.DataFrame
             if pd is not None:
                 vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
                                     index=[vals[0]])

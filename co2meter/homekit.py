@@ -17,6 +17,7 @@ PINCODE = b"800-11-400"
 NAME = 'CO2 Monitor'
 IDENTIFY = 'CO2Meter.py by Vladimir Filimonov'
 CO2_THRESHOLD = 1200
+FREQUENCY = 45
 
 
 ###############################################################################
@@ -25,7 +26,7 @@ CO2_THRESHOLD = 1200
 class CO2Accessory(Accessory):
     category = Category.SENSOR  # This is for the icon in the iOS Home app.
 
-    def __init__(self, mon=None, freq=5, **kwargs):
+    def __init__(self, mon=None, freq=FREQUENCY, monitoring=True, **kwargs):
         """ Initialize sensor:
               - call parent __init__
               - save references to characteristics
@@ -34,18 +35,21 @@ class CO2Accessory(Accessory):
             If monitor object is not passed, it will be created.
             freq defines interval in seconds between updating the values.
         """
+        if not monitoring and mon is None:
+            raise ValueError('For monitoring=False monitor object should be passed')
         self.monitor = co2.CO2monitor() if mon is None else mon
         self.frequency = freq
+        self.monitoring = monitoring
         super(CO2Accessory, self).__init__(NAME, **kwargs)
 
     #########################################################################
     def temperature_changed(self, value):
         """ Dummy callback """
-        print("Temperature changed to: ", value)
+        logging.info("Temperature changed to: %s" % value)
 
     def co2_changed(self, value):
         """ Dummy callback """
-        print("CO2 level is changed to: ", value)
+        logging.info("CO2 level is changed to: %s" % value)
 
     #########################################################################
     def _set_services(self):
@@ -89,6 +93,18 @@ class CO2Accessory(Accessory):
         self.add_service(serv_co2)
 
     #########################################################################
+    def _read_and_set(self):
+        if self.monitoring:
+            vals = self.monitor.read_data_raw(max_requests=1000)
+        else:
+            try:
+                vals = self.monitor._last_data
+            except:
+                return
+        self.char_co2.set_value(vals[1])
+        self.char_high_co2.set_value(vals[1] > CO2_THRESHOLD)
+        self.char_temp.set_value(int(vals[2]))
+
     def run(self):
         """ We override this method to implement what the accessory will do when it is
             started. An accessory is started and stopped from the AccessoryDriver.
@@ -96,40 +112,39 @@ class CO2Accessory(Accessory):
             It might be convenient to use the Accessory's run_sentinel, which is a
             threading. Event object which is set when the accessory should stop running.
         """
+        self._read_and_set()
         while not self.run_sentinel.wait(self.frequency):
-            with self.monitor.co2hid(send_magic_table=True):
-                vals = self.monitor._read_co2_temp(max_requests=1000)
-                # print(vals)
-
-            self.char_co2.set_value(vals[1])
-            self.char_high_co2.set_value(vals[1] > CO2_THRESHOLD)
-            self.char_temp.set_value(int(vals[2]))
+            self._read_and_set()
 
     def stop(self):
         """ Here we should clean-up resources if necessary.
             It is called by the AccessoryDriver when the Accessory is being stopped
             (it is called right after run_sentinel is set).
         """
-        print("Stopping accessory.")
+        logging.info("Stopping accessory.")
 
 
 ###############################################################################
-def start_homekit_accessory():
-    acc = CO2Accessory(pincode=PINCODE)
+###############################################################################
+def start_homekit(mon=None, port=PORT, host=None, monitoring=True,
+                  handle_sigint=True):
+    logging.basicConfig(level=logging.INFO)
 
+    acc = CO2Accessory(mon=mon, pincode=PINCODE, monitoring=monitoring)
     # Start the accessory on selected port
-    driver = AccessoryDriver(acc, port=PORT)
+    driver = AccessoryDriver(acc, port=port, address=host)
 
     # We want KeyboardInterrupts and SIGTERM (kill) to be handled by the driver itself,
     # so that it can gracefully stop the accessory, server and advertising.
-    signal.signal(signal.SIGINT, driver.signal_handler)
-    signal.signal(signal.SIGTERM, driver.signal_handler)
+    if handle_sigint:
+        signal.signal(signal.SIGINT, driver.signal_handler)
+        signal.signal(signal.SIGTERM, driver.signal_handler)
 
     # Start it!
     driver.start()
+    return driver
 
 
 ###############################################################################
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    start_homekit_accessory()
+    start_homekit()

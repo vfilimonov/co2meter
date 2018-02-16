@@ -3,12 +3,14 @@
     (c) Vladimir Filimonov, 2018
     E-mail: vladimir.a.filimonov@gmail.com
 """
-from __future__ import print_function
 import optparse
+import logging
 import threading
 import time
 import glob
 import os
+import socket
+import signal
 try:
     from StringIO import StringIO
 except ImportError:
@@ -30,7 +32,7 @@ import co2meter as co2
 
 _name = 'co2log'
 
-_LOCALHOST = '127.0.0.1'
+_DEFAULT_HOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
 _DEFAULT_INTERVAL = 30  # seconds
 _DASH_INTERVAL = 30000  # milliseconds
@@ -46,14 +48,22 @@ _SPANS = [{'label': 'Last hour', 'value': '1H'},
           {'label': 'Full log', 'value': ''}]
 
 ###############################################################################
+mon = None
+
+###############################################################################
 app = flask.Flask(__name__)
 
 
 ###############################################################################
 @app.route('/')
 def home():
-    data = read_logs()
-    vals = data.split('\n')[-2].split(',')
+    try:
+        vals = list(mon._last_data)
+        vals[-1] = '%.1f' % vals[-1]
+    except:
+        data = read_logs()
+        vals = data.split('\n')[-2].split(',')
+
     if int(vals[1]) >= _RANGE_MID[1]:
         color = _COLORS['r']
     elif int(vals[1]) < _RANGE_MID[0]:
@@ -231,18 +241,17 @@ def read_logs(name=None):
 #############################################################################
 def monitoring_CO2(mon, interval, fname):
     """ Tread for monitoring / logging """
-    with mon.co2hid(send_magic_table=True):
-        while _monitoring:
-            # Request concentration and temperature
-            vals = mon._read_co2_temp(max_requests=1000)
-            print('[%s] %d ppm, %.1f deg C' % tuple(vals))
+    while _monitoring:
+        # Request concentration and temperature
+        vals = mon.read_data_raw(max_requests=1000)
+        logging.info('[%s] %d ppm, %.1f deg C' % tuple(vals))
 
-            # Append to file
-            with open(fname, 'a') as f:
-                f.write('%s,%d,%.1f\n' % vals)
+        # Append to file
+        with open(fname, 'a') as f:
+            f.write('%s,%d,%.1f\n' % vals)
 
-            # Sleep
-            time.sleep(interval)
+        # Sleep
+        time.sleep(interval)
 
 
 #############################################################################
@@ -258,31 +267,91 @@ def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     global _monitoring
     _monitoring = True
 
+    logging.basicConfig(level=logging.INFO)
+
+    global mon
     mon = co2.CO2monitor()
+    mon.read_data_raw()
     t = threading.Thread(target=monitoring_CO2, args=(mon, interval, fname))
     t.start()
+    return t
 
 
 #############################################################################
 # Server routines
 #############################################################################
-def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
-            default_interval=_DEFAULT_INTERVAL, default_name=_DEFAULT_NAME):
+def my_ip():
+    """ Get my local IP address """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))  # Google Public DNS
+        return s.getsockname()[0]
+
+
+def start_server_homekit():
+    """ Start monitoring, flask/dash server and homekit accessory """
+    # Based on http://flask.pocoo.org/snippets/133/
+    from homekit import PORT, start_homekit
+
+    host = my_ip()
+    parser = optparse.OptionParser()
+    parser.add_option("-H", "--host",
+                      help="Hostname of the Flask app [default %s]" % host,
+                      default=host)
+    parser.add_option("-P", "--port-flask",
+                      help="Port for the Flask app [default %s]" % _DEFAULT_PORT,
+                      default=_DEFAULT_PORT)
+    parser.add_option("-K", "--port-homekit",
+                      help="Port for the Homekit accessory [default %s]" % PORT,
+                      default=PORT)
+    parser.add_option("-N", "--name",
+                      help="Name for the log file [default %s]" % _DEFAULT_NAME,
+                      default=_DEFAULT_NAME)
+    options, _ = parser.parse_args()
+
+    global _name
+    _name = options.name
+
+    # Start monitoring
+    t_monitor = start_monitor(name=options.name)
+    # Start homekit
+    t_homekit = start_homekit(mon=mon, host=options.host, port=int(options.port_homekit),
+                              monitoring=False, handle_sigint=False)
+
+    # Register Ctrl-C Call-backs
+    def handle_control_c(*args, **kwargs):
+        logging.info('Shutting down homekit...')
+        t_homekit.signal_handler(*args, **kwargs)
+        logging.info('Shutting down monitoring...')
+        global _monitoring
+        _monitoring = False
+        time.sleep(2)
+        logging.info('Shutting down app...')
+        stop_server()  # Will raise and choke, but I don't know how to do this gracefully
+
+    signal.signal(signal.SIGINT, handle_control_c)
+    signal.signal(signal.SIGTERM, handle_control_c)
+
+    # Start server
+    app.run(host=options.host, port=int(options.port_flask))
+
+
+#############################################################################
+def start_server():
     """ Runs Flask instance using command line arguments """
     # Based on http://flask.pocoo.org/snippets/133/
     parser = optparse.OptionParser()
     parser.add_option("-H", "--host",
-                      help="Hostname of the Flask app [default %s]" % default_host,
-                      default=default_host)
+                      help="Hostname of the Flask app [default %s]" % _DEFAULT_HOST,
+                      default=_DEFAULT_HOST)
     parser.add_option("-P", "--port",
-                      help="Port for the Flask app [default %s]" % default_port,
-                      default=default_port)
+                      help="Port for the Flask app [default %s]" % _DEFAULT_PORT,
+                      default=_DEFAULT_PORT)
     parser.add_option("-I", "--interval",
-                      help="Interval in seconds for CO2meter requests [default %d]" % default_interval,
-                      default=default_interval)
+                      help="Interval in seconds for CO2meter requests [default %d]" % _DEFAULT_INTERVAL,
+                      default=_DEFAULT_INTERVAL)
     parser.add_option("-N", "--name",
-                      help="Name for the log file [default %s]" % default_name,
-                      default=default_name)
+                      help="Name for the log file [default %s]" % _DEFAULT_NAME,
+                      default=_DEFAULT_NAME)
     parser.add_option("-d", "--debug",
                       action="store_true", dest="debug",
                       help=optparse.SUPPRESS_HELP)
@@ -294,22 +363,19 @@ def run_app(app, default_host=_LOCALHOST, default_port=_DEFAULT_PORT,
                       action="store_true", dest="no_server")
     options, _ = parser.parse_args()
 
-    # Name for the current session
     global _name
     _name = options.name
 
-    # start monitoring and server
+    # Start monitoring
     if not options.no_monitoring:
         start_monitor(name=options.name, interval=int(options.interval))
+
+    # Start server
     if not options.no_server:
         app.run(host=options.host, port=int(options.port), debug=options.debug)
 
 
-def server_start():
-    run_app(app)
-
-
-def server_stop():
+def stop_server():
     func = flask.request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
@@ -350,4 +416,4 @@ def wrap_table(data):
 ###############################################################################
 if __name__ == '__main__':
     # start_server() will take care of start_monitor()
-    server_start()
+    start_server()
