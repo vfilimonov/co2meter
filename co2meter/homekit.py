@@ -12,12 +12,13 @@ import pyhap.loader as loader
 
 import co2meter as co2
 
+###############################################################################
 PORT = 51826
 PINCODE = b"800-11-400"
 NAME = 'CO2 Monitor'
-IDENTIFY = 'CO2Meter.py by Vladimir Filimonov'
-CO2_THRESHOLD = 1200
-FREQUENCY = 45
+IDENTIFY = 'co2meter (https://github.com/vfilimonov/co2meter)'
+CO2_THRESHOLD = 1200  # iPhone will show warning if the concentration is above
+FREQUENCY = 45  # seconds - between consecutive reads from the device
 
 
 ###############################################################################

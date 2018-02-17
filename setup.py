@@ -6,7 +6,8 @@ exec(open('co2meter/_version.py').read())
 
 # Long description to be published in PyPi
 LONG_DESCRIPTION = """
-**CO2meter** is a Python library for the USB CO2 meter.
+**CO2meter** is a Python interface to the USB CO2 monitor with monitoring and
+logging tools, flask/dash web-server for visualization and Apple HomeKit compatibility.
 """
 
 setup(name='CO2meter',

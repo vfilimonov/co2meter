@@ -1,31 +1,23 @@
 # CO2meter
 
-CO2meter is a Python interface to the USB CO2 monitor.
+CO2meter is a Python interface to the USB CO2 monitor with monitoring and logging tools, flask/dash web-server for visualization and Apple HomeKit compatibility.
 
 
-## Installation
+# Installation
 
 ### Prerequisites
 
-Note that the package has been tested undex OSX only
-
-##### OSX
-
-Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
+**OSX**: Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
 
 	brew install libusb hidapi
 
-##### Linux / Ubuntu
-
-In Ubuntu, `libusb` could be retrieved via `apt-get`
+**Linux / Ubuntu**: `libusb` could be retrieved via `apt-get`
 
 	sudo apt-get install libusb-1.0-0-dev
 
-##### Windows
+**Windows**: For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
-For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
-
-### 2. Installation of python package
+### Installation of python package
 
 Then installation of `co2meter` could be done via the `pip` utility:
 
@@ -35,7 +27,29 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 
 Please note, that there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
 
-## Usage
+### Optional: flask/dash web-server
+
+In order to be able to start monitoring web-server a few extra packages are needed. Basic web-server requires only Flask, it will allow reading the current value in browser and downloading data in CSV/JSON. Flask could be installed via pip:
+
+	pip install flask
+
+For a "dashboard" with a chart of historical CO2 concentration and temperature a few more packages are required:
+
+	pip install -U dash dash-renderer dash-html-components dash-core-components plotly
+
+
+### Optional: Apple HomeKit compatibility
+
+In order to be able to add co2monitor to Apple Home application (iPhone/iPad) HAP-python is required:
+
+	pip install HAP-python
+
+In case when the "hosting server" is running on OSX no extra libraries are needed. For Linux servers you will need Avahi/Bonjour installed (due to zeroconf package). On a Raspberry Pi, you can get it with:
+
+	sudo apt-get install libavahi-compat-libdnssd-dev
+
+
+# General usage
 
 ### Basic use
 
@@ -93,29 +107,66 @@ By default all data is smoothed using Exponentially Weighted Moving Average with
 Note, that both plotting and reading CSV files requires `pandas` package to be installed.
 
 
-## Notes
+## Apple HomeKit compatibility
 
-* The output from the device is encrypted. I've found no description of the algorythm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above, but made slightly more readable (method `CO2monitor._decrypt()`).
+It is possible to start use your CO2 Monitor with Apple HomeKit. In order for doing that run the following command in the terminal:
 
-## Resources
+	co2meter_homekit
+
+which by default will launch the HomeKit Accessory service listening to the local IP address on the port 51826.
+
+Once the `co2meter_homekit` script is up and running, device could be added to the Apple Home app on iPhone/iPad. For this first make sure that both the iPhone and the machine where `co2meter_homekit` are in the same network (e.g. that iPhone is connected to the WiFi)
+launch the *Home app* -> *+* -> *Add accessory* -> *Don't have a code or can't scan?* -> *CO2 Meter*. When asked for PIN code type `800-11-400` (it is hardcoded in [homekit.py](https://github.com/vfilimonov/co2meter/blob/master/co2meter/homekit.py)).
+
+## Monitoring web-server
+
+The web-server is started by the following command in the terminal
+
+	co2meter_server
+
+It will start server by default on the `localhost` on the port 1201 and saving the log to the file `logs\co2.csv`. Both host, port and the log file name could be configured, for example:
+
+	co2meter_server -H 10.0.1.2 -P 8000 -N "Living room"
+
+Once started, it could be accessed via browser at a given address (`http://127.0.0.1:1201` in the first case and `http://10.0.1.2:8000`). The main page will show last readout from the sensor and links to the log history in CSV and JSON formats. Further if dash is installed there will be a link to the dashboard with the recent charts:
+![Screenshot - dash web-server](https://user-images.githubusercontent.com/1324881/36342020-0c2df1ac-13f8-11e8-978a-b1e3e92a3ea4.png)
+
+CO2/temperature readings are stored in the `logs` folder. By default (if `-N` parameter of the command line is not specified), all values will be appended to the single log file (`co2.csv`), however if there's a need to have separate logs (e.g. in case when device is used in several places and logs are not to be confused), the name could be set up from the command line. Dashboard allows to check history of all available logs. In order to change name of the log on a running server, use the following GET call: `http://host:port/rename?name=new_name`.
+
+Finally, HomeKit and web-server could be combined:
+
+	start_server_homekit
+
+which will start homekit accessory and flask/dash web-server on the local IP address.
+
+
+
+# Notes
+
+* The output from the device is encrypted. I've found no description of the algorithm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above (method `CO2monitor._decrypt()`).
+* The web-server does not do caching (yet) and was not tested (yet) over a long period of up-time.
+* Note that the package has been tested under OSX only
+
+
+# Resources
 
 Useful websites:
 
 * [CO2MeterHacking](https://revspace.nl/CO2MeterHacking) with brief description of the protocol
 * [ZG01 CO2 Module manual](https://revspace.nl/images/2/2e/ZyAura_CO2_Monitor_Carbon_Dioxide_ZG01_Module_english_manual-1.pdf) (PDF)
 * [USB Communication Protocol](http://www.co2meters.com/Documentation/AppNotes/AN135-CO2mini-usb-protocol.pdf) (PDF)
-* Habrahabr.ru posts with the description, review and tests of the device: [part 1](http://habrahabr.ru/company/masterkit/blog/248405/), [part 2](http://habrahabr.ru/company/masterkit/blog/248401/), [part 3](http://habrahabr.ru/company/masterkit/blog/248403/) (Russian, 3 parts)
+* Habrahabr.ru blog-posts with the description, review and tests of the device: [part 1](http://habrahabr.ru/company/masterkit/blog/248405/), [part 2](http://habrahabr.ru/company/masterkit/blog/248401/), [part 3](http://habrahabr.ru/company/masterkit/blog/248403/) (Russian, 3 parts)
 
 Scientific and commercial infographics:
 
 
-* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. [Original research paper *U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/) (image below from the feature story might not be rendered well on GitHub):
-![Impact of CO2 on human decision making process](https://newscenter.lbl.gov/wp-content/uploads/sites/2/2012/10/CO2-Figure2.png)
+* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. [Original research paper *U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/):
+![Impact of CO2 on human decision making process](https://user-images.githubusercontent.com/1324881/36335365-b850af5c-137f-11e8-9bdd-487e4865be3d.png)
 * Commercial infographics on CO2 concentration and indoor air quality ([from tester.co.uk](http://www.tester.co.uk/extech-co220-co2-air-quality-monitor)):
-![CO2 concentration and indoor air quality](http://www.tester.co.uk/media/wysiwyg/ted/product/extech-co220-co2-concentration.jpg)
+![CO2 concentration and indoor air quality](https://user-images.githubusercontent.com/1324881/36335369-bad5c820-137f-11e8-9193-c3ef1658d609.jpg)
 * Commercial infographics on CO2 concentration and productivity ([from dadget.ru](http://dadget.ru/katalog/zdorove/detektor-uglekislogo-gaza)):
-![CO2 concentration and productivity](http://dadget.ru/image/data/01/mt8057-01.jpg)
+![CO2 concentration and productivity](https://user-images.githubusercontent.com/1324881/36335370-bc92728a-137f-11e8-8066-8f2295638c7c.jpg)
 
-## License
+# License
 
 CO2meter package is released under the MIT license.
