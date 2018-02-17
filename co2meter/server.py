@@ -71,13 +71,17 @@ def home():
     else:
         color = _COLORS['y']
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
+
+    if dash is None:
+        url_dash = ''
+    else:
+        url_dash = '<br><a href="/dashboard">Dashboard</a>'
     return ('<h1>CO2 monitoring server</h1>'
             '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s&#8451;</font>'
             '<br><br><a href="/log">Data log</a> '
-            '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)'
-            '<br><a href="/dashboard">Dashboard</a>'
+            '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)%s'
             '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
-            % (vals[0], co2, vals[2], _URL, _URL))
+            % (vals[0], co2, vals[2], url_dash, _URL, _URL))
 
 
 #############################################################################
@@ -100,6 +104,19 @@ def log_csv(logname):
 def log_json(logname):
     data = read_logs(name=logname)
     return wrap_json(data)
+
+
+#############################################################################
+@app.route('/rename')
+def get_shape_positions():
+    args = flask.request.args
+    logging.info('rename', args.to_dict())
+    new_name = args.get('name', default=None, type=str)
+    if new_name is None:
+        return 'Error: new log name is not specified!'
+    global _name
+    _name = new_name
+    return 'Log name has changed to "%s"' % _name
 
 
 #############################################################################
@@ -239,40 +256,41 @@ def read_logs(name=None):
 
 
 #############################################################################
-def monitoring_CO2(mon, interval, fname):
+def write_to_log(vals):
+    """ file name for a current log """
+    # Create file if does not exist
+    fname = os.path.join('logs', _name + '.csv')
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    if not os.path.isfile(fname):
+        with open(fname, 'a') as f:
+            f.write('timestamp,co2,temp\n')
+    # Append to file
+    with open(fname, 'a') as f:
+        f.write('%s,%d,%.1f\n' % vals)
+
+
+def monitoring_CO2(mon, interval):
     """ Tread for monitoring / logging """
     while _monitoring:
         # Request concentration and temperature
         vals = mon.read_data_raw(max_requests=1000)
         logging.info('[%s] %d ppm, %.1f deg C' % tuple(vals))
-
-        # Append to file
-        with open(fname, 'a') as f:
-            f.write('%s,%d,%.1f\n' % vals)
-
-        # Sleep
+        # Write to log and sleep
+        write_to_log(vals)
         time.sleep(interval)
 
 
 #############################################################################
 def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     """ Start CO2 monitoring in a thread """
-    fname = os.path.join('logs', name + '.csv')
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    if not os.path.isfile(fname):
-        with open(fname, 'a') as f:
-            f.write('timestamp,co2,temp\n')
-
-    global _monitoring
-    _monitoring = True
-
     logging.basicConfig(level=logging.INFO)
 
-    global mon
+    global mon, _monitoring
+    _monitoring = True
     mon = co2.CO2monitor()
     mon.read_data_raw()
-    t = threading.Thread(target=monitoring_CO2, args=(mon, interval, fname))
+    t = threading.Thread(target=monitoring_CO2, args=(mon, interval))
     t.start()
     return t
 
