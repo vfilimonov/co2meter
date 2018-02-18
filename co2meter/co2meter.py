@@ -92,6 +92,7 @@ class CO2monitor:
             self._info['product_name'] = self._h.get_product_string()
             self._info['serial_no'] = self._h.get_serial_number_string()
 
+    #########################################################################
     def hid_open(self, send_magic_table=True):
         """ Open connection to HID device. If connection is already open,
             then only the counter of requests is incremented (so hid_close()
@@ -141,11 +142,22 @@ class CO2monitor:
         finally:
             self.hid_close()
 
+    #########################################################################
     @property
     def info(self):
         """ Device info """
         return self._info
 
+    @property
+    def is_alive(self):
+        """ If the device is still connected """
+        try:
+            with self.co2hid(send_magic_table=True):
+                return True
+        except:
+            return False
+
+    #########################################################################
     def _decrypt(self, message):
         """ Decode message received from CO2 monitor.
         """
@@ -211,6 +223,7 @@ class CO2monitor:
         ts = dt.datetime.now().replace(microsecond=0)
         return ts, co2, temp
 
+    #########################################################################
     def read_data_raw(self, max_requests=50):
         with self.co2hid(send_magic_table=True):
             vals = self._read_co2_temp(max_requests=max_requests)
@@ -245,6 +258,7 @@ class CO2monitor:
                                     index=[vals[0]])
             return vals
 
+    #########################################################################
     def _monitoring(self):
         """ Private function for continuous monitoring.
         """
@@ -283,9 +297,10 @@ class CO2monitor:
         """
         self._keep_monitoring = False
 
+    #########################################################################
     @property
     def data(self):
-        """ Data retrieved with continuous monitoring
+        """ All data retrieved with continuous monitoring
         """
         return self._data
 

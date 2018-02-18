@@ -30,8 +30,6 @@ except ImportError:
 
 import co2meter as co2
 
-_name = 'co2log'
-
 _DEFAULT_HOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
 _DEFAULT_INTERVAL = 30  # seconds
@@ -40,6 +38,8 @@ _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
 _COLORS = {'r': '#FF4136', 'y': '#FFDC00', 'g': '#2ECC40'}
 _RANGE_MID = [800, 1200]
+
+_name = _DEFAULT_NAME
 
 _SPANS = [{'label': 'Last hour', 'value': '1H'},
           {'label': 'Last day', 'value': '24H'},
@@ -310,7 +310,7 @@ def start_server_homekit():
     # Based on http://flask.pocoo.org/snippets/133/
     try:
         from .homekit import PORT, start_homekit
-    except ModuleNotFoundError:
+    except:
         # the case of running not from the installed module
         from homekit import PORT, start_homekit
 
@@ -439,3 +439,4 @@ def wrap_table(data):
 if __name__ == '__main__':
     # start_server() will take care of start_monitor()
     start_server()
+    # start_server_homekit()

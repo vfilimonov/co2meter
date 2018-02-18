@@ -5,6 +5,7 @@ CO2meter is a Python interface to the USB CO2 monitor with monitoring and loggin
 
 # Installation
 
+
 ### Prerequisites
 
 **OSX**: Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
@@ -35,7 +36,7 @@ In order to be able to start monitoring web-server a few extra packages are need
 
 For a "dashboard" with a chart of historical CO2 concentration and temperature a few more packages are required:
 
-	pip install -U dash dash-renderer dash-html-components dash-core-components plotly
+	pip install -U dash dash-renderer dash-html-components dash-core-components plotly pandas
 
 
 ### Optional: Apple HomeKit compatibility
@@ -44,7 +45,7 @@ In order to be able to add co2monitor to Apple Home application (iPhone/iPad) HA
 
 	pip install HAP-python
 
-In case when the "hosting server" is running on OSX no extra libraries are needed. For Linux servers you will need Avahi/Bonjour installed (due to zeroconf package). On a Raspberry Pi, you can get it with:
+In case when the "hosting server" is running on OSX no extra libraries are needed. For Linux (e.g. Raspberry Pi) servers you will need Avahi/Bonjour installed (due to zeroconf package):
 
 	sudo apt-get install libavahi-compat-libdnssd-dev
 
@@ -140,12 +141,13 @@ Finally, HomeKit and web-server could be combined:
 which will start homekit accessory and flask/dash web-server on the local IP address.
 
 
-
 # Notes
 
 * The output from the device is encrypted. I've found no description of the algorithm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above (method `CO2monitor._decrypt()`).
 * The web-server does not do caching (yet) and was not tested (yet) over a long period of up-time.
-* Note that the package has been tested under OSX only
+* Note that the package has been tested under OSX and Raspberry Pi only
+* On Raspberry Pi the server should be started under `root` (Issue #4)
+* Version 0.2 with webserver and homekit is not on pypi yet. Install it from the `master` branch.
 
 
 # Resources
