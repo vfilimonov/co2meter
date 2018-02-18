@@ -8,15 +8,27 @@ CO2meter is a Python interface to the USB CO2 monitor with monitoring and loggin
 
 ### Prerequisites
 
-**OSX**: Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
+##### OSX
+
+Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http://brew.sh/):
 
 	brew install libusb hidapi
 
-**Linux / Ubuntu**: `libusb` could be retrieved via `apt-get`
+##### Linux (including Raspberry Pi)
+
+`libusb` could be retrieved via `apt-get`
 
 	sudo apt-get install libusb-1.0-0-dev
 
-**Windows**: For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
+If the script is not intended to be started under `root`, proper permissions for the device should be set. Put the following two lines into a file `/etc/udev/rules.d/98-co2mon.rules`:
+
+	KERNEL=="hidraw*", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a052", GROUP="plugdev", MODE="0666"
+	SUBSYSTEM=="usb", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a052", GROUP="plugdev", MODE="0666"
+
+and run `sudo udevadm control --reload-rules && udevadm trigger`.
+
+###### Windows
+For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
 ### Installation of python package
 
@@ -145,9 +157,7 @@ which will start homekit accessory and flask/dash web-server on the local IP add
 
 * The output from the device is encrypted. I've found no description of the algorithm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above (method `CO2monitor._decrypt()`).
 * The web-server does not do caching (yet) and was not tested (yet) over a long period of up-time.
-* Note that the package has been tested under OSX and Raspberry Pi only
-* On Raspberry Pi the server should be started under `root` (Issue #4)
-* Version 0.2 with webserver and homekit is not on pypi yet. Install it from the `master` branch.
+* The whole setup is a bit heavy for such simple problem and (in case someone has time) could be simplified: e.g. talking to the device (in linux) could be done via reading/writing to `/dev/hidraw*`, parsing of the CSV and transformations could be done without `pandas`, and the dashboard could be done without `dash` in a plain `flask` with some basic d3 charting.
 
 
 # Resources
@@ -162,7 +172,7 @@ Useful websites:
 Scientific and commercial infographics:
 
 
-* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. [Original research paper *U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/):
+* Results of Berkeley Lab research studies showed that elevated indoor carbon dioxide impairs decision-making performance. Original research paper [*U. Satish et al. in Environmental Health Perspectives, 120(12), 2012*](http://ehp.niehs.nih.gov/1104789/) and a [feature story] (https://newscenter.lbl.gov/2012/10/17/elevated-indoor-carbon-dioxide-impairs-decision-making-performance/):
 ![Impact of CO2 on human decision making process](https://user-images.githubusercontent.com/1324881/36335365-b850af5c-137f-11e8-9bdd-487e4865be3d.png)
 * Commercial infographics on CO2 concentration and indoor air quality ([from tester.co.uk](http://www.tester.co.uk/extech-co220-co2-air-quality-monitor)):
 ![CO2 concentration and indoor air quality](https://user-images.githubusercontent.com/1324881/36335369-bad5c820-137f-11e8-9193-c3ef1658d609.jpg)
