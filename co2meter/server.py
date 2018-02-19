@@ -55,6 +55,25 @@ app = flask.Flask(__name__)
 
 
 ###############################################################################
+_IMG_G = '1324881/36358454-d707e2f4-150e-11e8-9bd1-b479e232f28f'
+_IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
+_IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
+_HTML_TEMPLATE = r"""
+<h1>CO2 monitoring server</h1>
+<div>
+<div style="position: relative; float: left;">
+<img src="https://user-images.githubusercontent.com/%s.jpg">
+</div>
+<div>
+<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s&#8451;</font>
+<br><br><a href="/log">Data log</a>
+(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)%s
+</div>
+</div>
+<br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>
+"""
+
+
 @app.route('/')
 def home():
     try:
@@ -66,22 +85,20 @@ def home():
 
     if int(vals[1]) >= _RANGE_MID[1]:
         color = _COLORS['r']
+        img = _IMG_R
     elif int(vals[1]) < _RANGE_MID[0]:
         color = _COLORS['g']
+        img = _IMG_G
     else:
         color = _COLORS['y']
+        img = _IMG_Y
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
 
     if dash is None:
         url_dash = ''
     else:
         url_dash = '<br><a href="/dashboard">Dashboard</a>'
-    return ('<h1>CO2 monitoring server</h1>'
-            '<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s&#8451;</font>'
-            '<br><br><a href="/log">Data log</a> '
-            '(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)%s'
-            '<br><br><br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>'
-            % (vals[0], co2, vals[2], url_dash, _URL, _URL))
+    return _HTML_TEMPLATE % (img, vals[0], co2, vals[2], url_dash, _URL, _URL)
 
 
 #############################################################################
@@ -374,9 +391,6 @@ def start_server():
     parser.add_option("-N", "--name",
                       help="Name for the log file [default %s]" % _DEFAULT_NAME,
                       default=_DEFAULT_NAME)
-    parser.add_option("-d", "--debug",
-                      action="store_true", dest="debug",
-                      help=optparse.SUPPRESS_HELP)
     parser.add_option("-m", "--nomonitoring",
                       help="No live monitoring (only flask server)",
                       action="store_true", dest="no_monitoring")
@@ -394,7 +408,7 @@ def start_server():
 
     # Start server
     if not options.no_server:
-        app.run(host=options.host, port=int(options.port), debug=options.debug)
+        app.run(host=options.host, port=int(options.port))
 
 
 def stop_server():
