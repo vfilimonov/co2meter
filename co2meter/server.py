@@ -17,6 +17,7 @@ except ImportError:
     from io import StringIO
 
 import flask
+from flask import request, render_template
 
 try:
     import dash
@@ -36,7 +37,11 @@ _DEFAULT_INTERVAL = 30  # seconds
 _DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
+
 _COLORS = {'r': '#F7B342', 'y': '#F7B342', 'g': '#8AC747'}
+_IMG_G = '1324881/36358454-d707e2f4-150e-11e8-9bd1-b479e232f28f'
+_IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
+_IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
 _RANGE_MID = [800, 1200]
 
 _name = _DEFAULT_NAME
@@ -55,34 +60,16 @@ app = flask.Flask(__name__)
 
 
 ###############################################################################
-_IMG_G = '1324881/36358454-d707e2f4-150e-11e8-9bd1-b479e232f28f'
-_IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
-_IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
-_HTML_TEMPLATE = r"""
-<h1>CO2 monitoring server</h1>
-<div>
-<div style="position: relative; float: left;">
-<img src="https://user-images.githubusercontent.com/%s.jpg">
-</div>
-<div>
-<font size="+2">%s<br>CO2 concentration: %s<br>Temperature: %s&#8451;</font>
-<br><br><a href="/log">Data log</a>
-(<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)%s
-</div>
-</div>
-<br>Author: Vladimir Filimonov<br>GitHub: <a href="%s">%s</a>
-"""
-
-
 @app.route('/')
 def home():
+    # Read CO2 and temp values
     try:
         vals = list(mon._last_data)
         vals[-1] = '%.1f' % vals[-1]
     except:
         data = read_logs()
         vals = data.split('\n')[-2].split(',')
-
+    # Select image and color
     if int(vals[1]) >= _RANGE_MID[1]:
         color = _COLORS['r']
         img = _IMG_R
@@ -93,12 +80,9 @@ def home():
         color = _COLORS['y']
         img = _IMG_Y
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
-
-    if dash is None:
-        url_dash = ''
-    else:
-        url_dash = '<br><a href="/dashboard">Dashboard</a>'
-    return _HTML_TEMPLATE % (img, vals[0], co2, vals[2], url_dash, _URL, _URL)
+    # Return template
+    return render_template('index.html', image=img, timestamp=vals[0],
+                           co2=vals[1], color=color, temp=vals[2], url=_URL)
 
 
 #############################################################################
@@ -126,7 +110,7 @@ def log_json(logname):
 #############################################################################
 @app.route('/rename')
 def get_shape_positions():
-    args = flask.request.args
+    args = request.args
     logging.info('rename', args.to_dict())
     new_name = args.get('name', default=None, type=str)
     if new_name is None:
@@ -166,7 +150,7 @@ if dash is not None:
 
         # Check if mobile
         try:
-            agent = flask.request.headers.get('User-Agent')
+            agent = request.headers.get('User-Agent')
             phones = ['iphone', 'android', 'blackberry', 'fennec', 'iemobile']
             staticPlot = any(phone in agent.lower() for phone in phones)
         except RuntimeError:
@@ -414,7 +398,7 @@ def start_server():
 
 
 def stop_server():
-    func = flask.request.environ.get('werkzeug.server.shutdown')
+    func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
@@ -435,9 +419,8 @@ def wrap_csv(data, fname='output'):
 def wrap_json(data):
     """ Convert CSV to JSON and make it downloadable """
     entries = [_.split(',') for _ in data.split('\n') if _ != '']
-    js = {'timestamp': [_[0] for _ in entries[1:]],
-          'co2': [int(_[1]) for _ in entries[1:]],
-          'temp': [float(_[2]) for _ in entries[1:]]}
+    js = [{k: v for k, v in zip(['timestamp', 'co2', 'temp'], x)}
+          for x in entries[1:]]
     return flask.jsonify(js)
 
 

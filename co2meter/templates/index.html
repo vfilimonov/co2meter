@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>CO2 monitor</title>
+  <meta charset="utf-8">
+  <style>
+    /* CSS to go here */
+  </style>
+</head>
+<body>
+  <h1>CO2 monitoring server</h1>
+  <div>
+  <div style="position: relative; float: left;">
+    <img src="https://user-images.githubusercontent.com/{{ image }}.jpg">
+  </div>
+  <div>
+    <font size="+2">
+      {{ timestamp }}
+      <br>CO2 concentration: <font color="{{ color }}">{{ co2 }} ppm</font>
+      <br>Temperature: {{ temp }}&#8451;
+    </font>
+  <br><br><a href="/log">Data log</a>
+  (<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)
+  <br><a href="/dashboard">Dashboard</a>
+  </div>
+  </div>
+  <br>Author: Vladimir Filimonov<br>GitHub: <a href="{{ url }}">{{ url }}</a>
+</body>
+</html>
