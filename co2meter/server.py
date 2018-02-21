@@ -36,7 +36,7 @@ _DEFAULT_INTERVAL = 30  # seconds
 _DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
-_COLORS = {'r': '#FF4136', 'y': '#FFDC00', 'g': '#2ECC40'}
+_COLORS = {'r': '#F7B342', 'y': '#F7B342', 'g': '#8AC747'}
 _RANGE_MID = [800, 1200]
 
 _name = _DEFAULT_NAME
@@ -240,6 +240,7 @@ if dash is not None:
             'mode': 'lines+markers',
             'type': 'scatter',
             'yaxis': {'range': [co2_min, co2_max]},
+            'name': 'CO2 concentration',
         }, 1, 1)
         fig.append_trace({
             'x': data.index,
@@ -248,6 +249,7 @@ if dash is not None:
             'type': 'scatter',
             'yaxis': {'range': [min(15, data['temp'].min()),
                                 max(27, data['temp'].max())]},
+            'name': 'Temperature',
         }, 2, 1)
         return fig
 
