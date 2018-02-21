@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>CO2 dashboard</title>
+  <meta charset="utf-8">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega/3.0.0-beta.30/vega.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/2.0.0-beta.2/vega-lite.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/3.0.0-beta.14/vega-embed.js"></script>
+  <!-- Vega Tooltip -->
+  <script src="https://vega.github.io/vega-tooltip/vega-tooltip.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://vega.github.io/vega-tooltip/vega-tooltip.css">
+
+  <style>
+    /* CSS to go here */
+  </style>
+  <script>
+    function parse(url, div) {
+      var opt = {
+        mode: "vega-lite",
+        renderer: "svg",
+        actions: {export: false, source: false, editor: false}
+      };
+
+      vega.embed("#"+div, url, opt, function(error, result) {
+        // result.view is the Vega View, url is the original Vega-Lite specification
+        vegaTooltip.vegaLite(result.view, url);
+      });
+    }
+
+    function updateChart(){
+      var e = document.getElementById("select-name");
+      var name = e.options[e.selectedIndex].value;
+      var e = document.getElementById("select-freq");
+      var freq = e.options[e.selectedIndex].value;
+      var url = "/chart2/"+name+"/"+freq;
+      console.log(url);
+
+      parse(url, "chart");
+    }
+  </script>
+</head>
+<body>
+  <h1>CO2 monitor dashboard</h1>
+  <div id="controls">
+    <select id="select-name" onchange="updateChart()">
+      <option value="co2">co2</option>
+      <option value="study" selected>study</option>
+    </select>
+    <select id="select-freq" onchange="updateChart()">
+      <option value="1H">Last hour</option>
+      <option value="24H" selected>Last day</option>
+      <option value="7D">Last week</option>
+      <option value="30D">Last month</option>
+      <option value="">Full log</option>
+    </select>
+  </div>
+  <div id="chart"></div>
+
+
+  <!-- Render Charts for the first time-->
+  <script type="text/javascript">
+    updateChart();
+    // Repeat every 30 seconds
+    setInterval(function(){ updateChart(); }, 30000);
+  </script>
+</body>
+</html>
