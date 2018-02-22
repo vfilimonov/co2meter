@@ -1,6 +1,6 @@
 # CO2meter
 
-CO2meter is a Python interface to the USB CO2 monitor with monitoring and logging tools, flask/dash web-server for visualization and Apple HomeKit compatibility.
+CO2meter is a Python interface to the USB CO2 monitor with monitoring and logging tools, flask web-server for visualization and Apple HomeKit compatibility.
 
 
 # Installation
@@ -40,15 +40,11 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 
 Please note, that there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
 
-### Optional: flask/dash web-server
+### Optional: flask web-server
 
-In order to be able to start monitoring web-server a few extra packages are needed. Basic web-server requires only Flask, it will allow reading the current value in browser and downloading data in CSV/JSON. Flask could be installed via pip:
+In order to be able to start monitoring web-server a few extra packages are needed. Basic web-server will allow reading the current value in browser, downloading data in CSV/JSON and monitoring the status with a simple dashboard. Dependencies could be installed via pip:
 
-	pip install flask
-
-For a "dashboard" with a chart of historical CO2 concentration and temperature a few more packages are required:
-
-	pip install -U dash dash-renderer dash-html-components dash-core-components plotly pandas
+	pip install -U flask plotly pandas
 
 
 ### Optional: Apple HomeKit compatibility
@@ -141,7 +137,7 @@ It will start server by default on the `localhost` on the port 1201 and saving t
 
 	co2meter_server -H 10.0.1.2 -P 8000 -N "Living room"
 
-Once started, it could be accessed via browser at a given address (`http://127.0.0.1:1201` in the first case and `http://10.0.1.2:8000`). The main page will show last readout from the sensor and links to the log history in CSV and JSON formats. Further if dash is installed there will be a link to the dashboard with the recent charts:
+Once started, it could be accessed via browser at a given address (`http://127.0.0.1:1201` in the first case and `http://10.0.1.2:8000`). The main page will show last readout from the sensor and links to the log history in CSV and JSON formats and a dashboard with the recent charts:
 ![Screenshot - dash web-server](https://user-images.githubusercontent.com/1324881/36342020-0c2df1ac-13f8-11e8-978a-b1e3e92a3ea4.png)
 
 CO2/temperature readings are stored in the `logs` folder. By default (if `-N` parameter of the command line is not specified), all values will be appended to the single log file (`co2.csv`), however if there's a need to have separate logs (e.g. in case when device is used in several places and logs are not to be confused), the name could be set up from the command line. Dashboard allows to check history of all available logs. In order to change name of the log on a running server, use the following GET call: `http://host:port/rename?name=new_name`.
@@ -150,14 +146,14 @@ Finally, HomeKit and web-server could be combined:
 
 	start_server_homekit
 
-which will start homekit accessory and flask/dash web-server on the local IP address.
+which will start homekit accessory and flask web-server on the local IP address.
 
 
 # Notes
 
 * The output from the device is encrypted. I've found no description of the algorithm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above (method `CO2monitor._decrypt()`).
 * The web-server does not do caching (yet) and was not tested (yet) over a long period of up-time.
-* The whole setup is a bit heavy for such simple problem and (in case someone has time) could be simplified: e.g. talking to the device (in linux) could be done via reading/writing to `/dev/hidraw*`, parsing of the CSV and transformations could be done without `pandas`, and the dashboard could be done without `dash` in a plain `flask` with some basic d3 charting.
+* The whole setup is a bit heavy for such simple problem and (in case someone has time) could be simplified: e.g. talking to the device (in linux) could be done via reading/writing to `/dev/hidraw*`, parsing of the CSV and transformations could be done without `pandas`, and the dashboard could be done in a plain `flask` using `plotly.js` without python-binding.
 
 
 # Resources
