@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 GITHUB_URL = 'http://github.com/vfilimonov/co2meter'
 
