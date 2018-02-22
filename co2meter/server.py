@@ -11,23 +11,17 @@ import glob
 import os
 import socket
 import signal
+import json
+
 try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
 
 import flask
-from flask import request, render_template
-
-try:
-    import dash
-    import dash_core_components as dcc
-    import dash_html_components as html
-    from dash.dependencies import Output, Event, Input
-    import pandas as pd
-    import plotly
-except ImportError:
-    dash = None
+from flask import request, render_template, jsonify
+import plotly
+import pandas as pd
 
 import co2meter as co2
 
@@ -38,7 +32,7 @@ _DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
 _URL = 'https://github.com/vfilimonov/co2meter'
 
-_COLORS = {'r': '#F7B342', 'y': '#F7B342', 'g': '#8AC747'}
+_COLORS = {'r': '#E81F2E', 'y': '#FAAF4C', 'g': '#7FB03F'}
 _IMG_G = '1324881/36358454-d707e2f4-150e-11e8-9bd1-b479e232f28f'
 _IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
 _IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
@@ -46,17 +40,13 @@ _RANGE_MID = [800, 1200]
 
 _name = _DEFAULT_NAME
 
-_SPANS = [{'label': 'Last hour', 'value': '1H'},
-          {'label': 'Last day', 'value': '24H'},
-          {'label': 'Last week', 'value': '7D'},
-          {'label': 'Last month', 'value': '30D'},
-          {'label': 'Full log', 'value': ''}]
-
 ###############################################################################
 mon = None
 
 ###############################################################################
 app = flask.Flask(__name__)
+app.jinja_env.auto_reload = True
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 
 ###############################################################################
@@ -130,120 +120,97 @@ def shutdown():
 
 
 #############################################################################
-# Dash sever
+# Dashboard on plotly
 #############################################################################
-if dash is not None:
-    app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard')
-    app_dash.title = 'CO2 monitor'
+def prepare_data(name=None, span='24H'):
+    data = read_logs(name)
+    data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
+    if span != '':
+        data = data.last(span)
 
-    def dash_layout():
-        # Get list of files
-        files = glob.glob('logs/*.csv')
-        files = [os.path.splitext(os.path.basename(_))[0] for _ in files]
-        files = [{'label': _, 'value': _} for _ in files]
-        fn = _name
-
-        dd_name = dcc.Dropdown(id='name-dropdown', value=fn, options=files,
-                               clearable=False, searchable=False)
-        dd_span = dcc.Dropdown(id='span-dropdown', value='24H', options=_SPANS,
-                               clearable=False, searchable=False)
-
-        # Check if mobile
-        try:
-            agent = request.headers.get('User-Agent')
-            phones = ['iphone', 'android', 'blackberry', 'fennec', 'iemobile']
-            staticPlot = any(phone in agent.lower() for phone in phones)
-        except RuntimeError:
-            staticPlot = False
-
-        # return layout
-        ST = {'float': 'left', 'width': '25%'}
-        CFG = {'displayModeBar': False, 'queueLength': 0, 'staticPlot': staticPlot}
-        page = [
-            html.H2(children='CO2 monitor dashboard'),
-            html.Div(children=[html.Div([dd_name], style=ST, id='div-dd-name'),
-                               html.Div([dd_span], style=ST, id='div-dd-span'),
-                               ], id='controls', style={'height': '40px'}),
-            html.Div(children=[dcc.Graph(id='temp-graph', config=CFG)],
-                     id='div-graph'),
-            #html.Div([html.P('<font size="-2" color="#DDDDDD">by Vladimir Filimonov</font>')]),
-            html.Div(style={'height': '10'}),
-            html.Div('by Vladimir Filimonov', style={'color': '#DDDDDD', 'fontSize': 14, 'text-align': 'right'}),
-            dcc.Interval(id='interval-component', interval=_DASH_INTERVAL, n_intervals=0),
-        ]
-        return html.Div(children=page)
-
-    app_dash.layout = dash_layout
-
-    #########################################################################
-    def prepare_graph(name=None, span='24H'):
-        data = read_logs(name)
-        data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
-        if span != '':
-            data = data.last(span)
-
-        if span == '24H':
-            data = data.resample('60s').mean()
-        elif span == '7D':
-            data = data.resample('600s').mean()
-        elif span == '30D':
+    if span == '24H':
+        data = data.resample('60s').mean()
+    elif span == '7D':
+        data = data.resample('600s').mean()
+    elif span == '30D':
+        data = data.resample('1H').mean()
+    elif span == '':
+        if len(data) > 3000:  # Resample only long series
             data = data.resample('1H').mean()
-        elif span == '':
-            if len(data) > 3000:  # Resample only long series
-                data = data.resample('1H').mean()
+    data = data.round({'co2': 0, 'temp': 1})
+    return data
 
-        co2_min = min(500, data['co2'].min() - 50)
-        co2_max = max(2000, data['co2'].max() + 50)
 
-        # x-span
-        rect_green = {'type': 'rect', 'layer': 'below',
-                      'xref': 'paper', 'x0': 0, 'x1': 1,
-                      'yref': 'y', 'y0': co2_min, 'y1': _RANGE_MID[0],
-                      'fillcolor': _COLORS['g'],
-                      'opacity': 0.2, 'line': {'width': 0},
-                      }
-        rect_yellow = dict(rect_green)
-        rect_yellow['y0'] = _RANGE_MID[0]
-        rect_yellow['y1'] = _RANGE_MID[1]
-        rect_yellow['fillcolor'] = _COLORS['y']
-        rect_red = dict(rect_green)
-        rect_red['y0'] = _RANGE_MID[1]
-        rect_red['y1'] = co2_max
-        rect_red['fillcolor'] = _COLORS['r']
+def rect(y0, y1, color):
+    return {'type': 'rect', 'layer': 'below',
+            'xref': 'paper', 'x0': 0, 'x1': 1,
+            'yref': 'y', 'y0': y0, 'y1': y1,
+            'fillcolor': color, 'opacity': 0.2, 'line': {'width': 0}}
 
-        # Make figure
-        fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.1,
-                                         print_grid=False, shared_xaxes=True,
-                                         subplot_titles=('CO2 concentration', 'Temperature'))
-        fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 30}
-        fig['layout']['showlegend'] = False
-        fig['layout']['shapes'] = [rect_green, rect_yellow, rect_red]
-        fig.append_trace({
-            'x': data.index,
-            'y': data['co2'],
-            'mode': 'lines+markers',
-            'type': 'scatter',
-            'yaxis': {'range': [co2_min, co2_max]},
-            'name': 'CO2 concentration',
-        }, 1, 1)
-        fig.append_trace({
-            'x': data.index,
-            'y': data['temp'],
-            'mode': 'lines+markers',
-            'type': 'scatter',
-            'yaxis': {'range': [min(15, data['temp'].min()),
-                                max(27, data['temp'].max())]},
-            'name': 'Temperature',
-        }, 2, 1)
-        return fig
 
-    @app_dash.callback(Output('temp-graph', 'figure'),
-                       [Input('interval-component', 'n_intervals'),
-                        Input('name-dropdown', 'value'),
-                        Input('span-dropdown', 'value'),
-                        ])
-    def update_graph(n, name, span):
-        return prepare_graph(name, span)
+#############################################################################
+@app.route("/chart/", strict_slashes=False)
+@app.route("/chart/<name>", strict_slashes=False)
+@app.route("/chart/<name>/<freq>", strict_slashes=False)
+def chart_co2_temp(name=None, freq='24H'):
+    data = prepare_data(name, freq)
+    t_format = '%H:%M' if freq in ('24H', '1H') else '%Y-%m-%d'
+
+    co2_min = min(500, data['co2'].min() - 50)
+    co2_max = max(2000, data['co2'].max() + 50)
+    rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
+    rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
+    rect_red = rect(_RANGE_MID[1], co2_max, _COLORS['r'])
+
+    # Check if mobile
+    try:
+        agent = request.headers.get('User-Agent')
+        phones = ['iphone', 'android', 'blackberry', 'fennec', 'iemobile']
+        staticPlot = any(phone in agent.lower() for phone in phones)
+    except RuntimeError:
+        staticPlot = False
+
+    # Make figure
+    fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.1,
+                                     print_grid=False, shared_xaxes=True,
+                                     subplot_titles=('CO2 concentration', 'Temperature'))
+    fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 30}
+    fig['layout']['showlegend'] = False
+    fig['layout']['shapes'] = [rect_green, rect_yellow, rect_red]
+    fig.append_trace({
+        'x': data.index,
+        'y': data['co2'],
+        'mode': 'lines+markers',
+        'type': 'scatter',
+        'yaxis': {'range': [co2_min, co2_max]},
+        'name': 'CO2 concentration',
+    }, 1, 1)
+    fig.append_trace({
+        'x': data.index,
+        'y': data['temp'],
+        'mode': 'lines+markers',
+        'type': 'scatter',
+        'yaxis': {'range': [min(15, data['temp'].min()),
+                            max(27, data['temp'].max())]},
+        'name': 'Temperature',
+    }, 2, 1)
+    # return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+    # small hack: we need to add config options to json
+    fig = json.loads(json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder))
+    fig['config'] = {'displayModeBar': False, 'staticPlot': staticPlot}
+    return jsonify(fig)
+
+
+#############################################################################
+@app.route("/dashboard")
+def dashboard_plotly():
+    # Get list of files
+    files = glob.glob('logs/*.csv')
+    files = [os.path.splitext(os.path.basename(_))[0] for _ in files]
+    # And find selected for jinja template
+    files = [(_, _ == _name) for _ in files]
+    return render_template('dashboard.html', files=files)
 
 
 #############################################################################
@@ -383,8 +350,13 @@ def start_server():
     parser.add_option("-s", "--noserver",
                       help="No server (only monitoring to file)",
                       action="store_true", dest="no_server")
+    parser.add_option("-d", "--debug",
+                      action="store_true", dest="debug",
+                      help=optparse.SUPPRESS_HELP)
     options, _ = parser.parse_args()
 
+    if options.debug and not options.no_monitoring:
+        parser.error("--debug option could be used only with --no_monitoring")
     global _name
     _name = options.name
 
@@ -394,7 +366,7 @@ def start_server():
 
     # Start server
     if not options.no_server:
-        app.run(host=options.host, port=int(options.port))
+        app.run(debug=options.debug, host=options.host, port=int(options.port))
 
 
 def stop_server():
@@ -421,7 +393,7 @@ def wrap_json(data):
     entries = [_.split(',') for _ in data.split('\n') if _ != '']
     js = [{k: v for k, v in zip(['timestamp', 'co2', 'temp'], x)}
           for x in entries[1:]]
-    return flask.jsonify(js)
+    return jsonify(js)
 
 
 def wrap_table(data):
