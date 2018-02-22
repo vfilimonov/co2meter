@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>CO2 dashboard</title>
+  <meta charset="utf-8">
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <style>
+    /* CSS to go here */
+    select {
+      display: inline-block;
+      width: 200px;
+      height: 38px;
+      background-color: #fff;
+      border: 1px solid #D1D1D1;
+      border-radius: 4px;
+      box-shadow: none;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: inherit; /*https://stackoverflow.com/questions/6080413/why-doesnt-input-inherit-the-font-from-body*/
+    }
+  </style>
+  <script>
+    function updateChart(){
+      var e = document.getElementById("select-name");
+      var name = e.options[e.selectedIndex].value;
+      var e = document.getElementById("select-freq");
+      var freq = e.options[e.selectedIndex].value;
+      var url = "/chart/"+name+"/"+freq;
+
+      //console.log(url);
+      //parse(url, "chart");
+
+      Plotly.d3.json(url, function(err, fig) {
+        Plotly.newPlot('chart', fig.data, fig.layout, fig.config);
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>CO2 monitor dashboard</h1>
+  <div id="controls">
+    <select id="select-name" onchange="updateChart()">
+      <!--option value="co2">co2</option>
+      <option value="study" selected>study</option-->
+      {% for fname, sel in files %}
+        <option value="{{ fname }}" {{ 'selected' if sel else '' }}>{{ fname }}</option>
+      {% endfor %}
+    </select>
+    <select id="select-freq" onchange="updateChart()">
+      <option value="1H">Last hour</option>
+      <option value="24H" selected>Last day</option>
+      <option value="7D">Last week</option>
+      <option value="30D">Last month</option>
+      <option value="">Full log</option>
+    </select>
+  </div>
+  <!--div id="chart" style="width:90%;height:250px;"></div-->
+  <div id="chart"></div>
+
+
+  <!-- Render Charts for the first time-->
+  <script type="text/javascript">
+    updateChart();
+    // Repeat every 30 seconds
+    setInterval(function(){ updateChart(); }, 3000);
+  </script>
+</body>
+</html>
