@@ -23,10 +23,8 @@
   </style>
   <script>
     function updateChart(){
-      var e = document.getElementById("select-name");
-      var name = e.options[e.selectedIndex].value;
-      var e = document.getElementById("select-freq");
-      var freq = e.options[e.selectedIndex].value;
+      var name = document.getElementById("select-name").value;
+      var freq = document.getElementById("select-freq").value;
       var url = "/chart/"+name+"/"+freq;
 
       //console.log(url);
@@ -53,7 +51,7 @@
       <option value="24H" selected>Last day</option>
       <option value="7D">Last week</option>
       <option value="30D">Last month</option>
-      <option value="">Full log</option>
+      <option value="FULL">Full log</option>
     </select>
   </div>
   <!--div id="chart" style="width:90%;height:250px;"></div-->

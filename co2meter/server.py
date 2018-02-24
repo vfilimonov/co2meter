@@ -125,7 +125,7 @@ def shutdown():
 def prepare_data(name=None, span='24H'):
     data = read_logs(name)
     data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
-    if span != '':
+    if span != 'FULL':
         data = data.last(span)
 
     if span == '24H':
@@ -134,7 +134,7 @@ def prepare_data(name=None, span='24H'):
         data = data.resample('600s').mean()
     elif span == '30D':
         data = data.resample('1H').mean()
-    elif span == '':
+    elif span == 'FULL':
         if len(data) > 3000:  # Resample only long series
             data = data.resample('1H').mean()
     data = data.round({'co2': 0, 'temp': 1})
@@ -154,10 +154,10 @@ def rect(y0, y1, color):
 @app.route("/chart/<name>/<freq>", strict_slashes=False)
 def chart_co2_temp(name=None, freq='24H'):
     data = prepare_data(name, freq)
-    t_format = '%H:%M' if freq in ('24H', '1H') else '%Y-%m-%d'
 
     co2_min = min(500, data['co2'].min() - 50)
-    co2_max = max(2000, data['co2'].max() + 50)
+    co2_max = min(max(2000, data['co2'].max() + 50), 3200)
+
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
     rect_red = rect(_RANGE_MID[1], co2_max, _COLORS['r'])
