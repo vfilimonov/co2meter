@@ -148,6 +148,15 @@ def rect(y0, y1, color):
             'fillcolor': color, 'opacity': 0.2, 'line': {'width': 0}}
 
 
+def ts2trace(ts, name=None, mode='lines+markers'):
+    trace = {'x': ts.index,
+             'y': ts.values,
+             'mode': mode}
+    if name is not None:
+        trace['name'] = name
+    return trace
+
+
 #############################################################################
 @app.route("/chart/", strict_slashes=False)
 @app.route("/chart/<name>", strict_slashes=False)
@@ -174,32 +183,20 @@ def chart_co2_temp(name=None, freq='24H'):
     fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.1,
                                      print_grid=False, shared_xaxes=True,
                                      subplot_titles=('CO2 concentration', 'Temperature'))
+    fig.append_trace(ts2trace(data['co2'], 'CO2 concentration'), 1, 1)
+    fig.append_trace(ts2trace(data['temp'], 'Temperature'), 2, 1)
+
+    # We'll need to add config, which is not in the plotly...Figure type
+    fig = dict(fig)
+    fig['config'] = {'displayModeBar': False, 'staticPlot': staticPlot}
     fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 30}
     fig['layout']['showlegend'] = False
     fig['layout']['shapes'] = [rect_green, rect_yellow, rect_red]
-    fig.append_trace({
-        'x': data.index,
-        'y': data['co2'],
-        'mode': 'lines+markers',
-        'type': 'scatter',
-        'yaxis': {'range': [co2_min, co2_max]},
-        'name': 'CO2 concentration',
-    }, 1, 1)
-    fig.append_trace({
-        'x': data.index,
-        'y': data['temp'],
-        'mode': 'lines+markers',
-        'type': 'scatter',
-        'yaxis': {'range': [min(15, data['temp'].min()),
-                            max(27, data['temp'].max())]},
-        'name': 'Temperature',
-    }, 2, 1)
-    # return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    fig['layout']['yaxis1']['range'] = [co2_min, co2_max]
+    fig['layout']['yaxis2']['range'] = [min(15, data['temp'].min()),
+                                        max(27, data['temp'].max())]
 
-    # small hack: we need to add config options to json
-    fig = json.loads(json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder))
-    fig['config'] = {'displayModeBar': False, 'staticPlot': staticPlot}
-    return jsonify(fig)
+    return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
 
 #############################################################################
