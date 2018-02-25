@@ -43,6 +43,11 @@ CO2_LOW = 800
 
 
 #############################################################################
+def now():
+    return dt.datetime.now().replace(microsecond=0)
+
+
+#############################################################################
 def list_to_longint(x):
     return sum([val << (i * 8) for i, val in enumerate(x[::-1])])
 
@@ -220,8 +225,7 @@ class CO2monitor:
                 temp = _temp
             if (co2 is not None) and (temp is not None):
                 break
-        ts = dt.datetime.now().replace(microsecond=0)
-        return ts, co2, temp
+        return now(), co2, temp
 
     #########################################################################
     def read_data_raw(self, max_requests=50):

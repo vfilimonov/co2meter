@@ -28,8 +28,8 @@ import co2meter as co2
 _DEFAULT_HOST = '127.0.0.1'
 _DEFAULT_PORT = '1201'
 _DEFAULT_INTERVAL = 30  # seconds
-_DASH_INTERVAL = 30000  # milliseconds
 _DEFAULT_NAME = 'co2'
+_INIT_TIME = 30  # time to initialize and calibrate device
 _URL = 'https://github.com/vfilimonov/co2meter'
 
 _COLORS = {'r': '#E81F2E', 'y': '#FAAF4C', 'g': '#7FB03F'}
@@ -37,6 +37,7 @@ _IMG_G = '1324881/36358454-d707e2f4-150e-11e8-9bd1-b479e232f28f'
 _IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
 _IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
 _RANGE_MID = [800, 1200]
+_CO2_MAX_VALUE = 3200  # Cut our yaxis here
 
 _name = _DEFAULT_NAME
 
@@ -53,12 +54,18 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 @app.route('/')
 def home():
     # Read CO2 and temp values
+    if mon is None:
+        status = '<h1 align="center" style="color:%s;">Device is not connected</h1>' % _COLORS['r']
+    else:
+        status = ''
     try:
         vals = list(mon._last_data)
         vals[-1] = '%.1f' % vals[-1]
     except:
         data = read_logs()
         vals = data.split('\n')[-2].split(',')
+        if status == '':
+            status = '<h1 align="center" style="color:%s;">Device is not ready</h1>' % _COLORS['r']
     # Select image and color
     if int(vals[1]) >= _RANGE_MID[1]:
         color = _COLORS['r']
@@ -72,7 +79,8 @@ def home():
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
     # Return template
     return render_template('index.html', image=img, timestamp=vals[0],
-                           co2=vals[1], color=color, temp=vals[2], url=_URL)
+                           co2=vals[1], color=color, temp=vals[2], url=_URL,
+                           status=status)
 
 
 #############################################################################
@@ -165,7 +173,7 @@ def chart_co2_temp(name=None, freq='24H'):
     data = prepare_data(name, freq)
 
     co2_min = min(500, data['co2'].min() - 50)
-    co2_max = min(max(2000, data['co2'].max() + 50), 3200)
+    co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -237,14 +245,40 @@ def write_to_log(vals):
         f.write('%s,%d,%.1f\n' % vals)
 
 
-def monitoring_CO2(mon, interval):
+def read_co2_data():
+    """ A small hack to read co2 data from monitor in order to account for case
+        when monitor is not initialized yet
+    """
+    global mon
+    if mon is None:
+        # Try to initialize
+        try:
+            mon = co2.CO2monitor()
+            # Sleep. If we read from device before it is calibrated, we'll
+            # get wrong values
+            time.sleep(_INIT_TIME)
+        except OSError:
+            return None
+    try:
+        return mon.read_data_raw(max_requests=1000)
+    except OSError:
+        # We kill the link and will require to initialize monitor again next time
+        mon = None
+        return None
+
+
+def monitoring_CO2(interval):
     """ Tread for monitoring / logging """
     while _monitoring:
         # Request concentration and temperature
-        vals = mon.read_data_raw(max_requests=1000)
-        logging.info('[%s] %d ppm, %.1f deg C' % tuple(vals))
-        # Write to log and sleep
-        write_to_log(vals)
+        vals = read_co2_data()
+        if vals is None:
+            logging.info('[%s] monitor is not connected' % co2.now())
+        else:
+            # Write to log and sleep
+            logging.info('[%s] %d ppm, %.1f deg C' % tuple(vals))
+            write_to_log(vals)
+        # Sleep for the next call
         time.sleep(interval)
 
 
@@ -253,11 +287,9 @@ def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     """ Start CO2 monitoring in a thread """
     logging.basicConfig(level=logging.INFO)
 
-    global mon, _monitoring
+    global _monitoring
     _monitoring = True
-    mon = co2.CO2monitor()
-    mon.read_data_raw()
-    t = threading.Thread(target=monitoring_CO2, args=(mon, interval))
+    t = threading.Thread(target=monitoring_CO2, args=(interval,))
     t.start()
     return t
 
