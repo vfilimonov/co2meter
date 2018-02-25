@@ -283,7 +283,7 @@ def monitoring_CO2(interval):
 
 
 #############################################################################
-def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
+def start_monitor(interval=_DEFAULT_INTERVAL):
     """ Start CO2 monitoring in a thread """
     logging.basicConfig(level=logging.INFO)
 
@@ -292,6 +292,26 @@ def start_monitor(name=_DEFAULT_NAME, interval=_DEFAULT_INTERVAL):
     t = threading.Thread(target=monitoring_CO2, args=(interval,))
     t.start()
     return t
+
+
+#############################################################################
+def init_homekit_target(port, host):
+    try:
+        from .homekit import start_homekit
+    except:
+        from homekit import start_homekit
+
+    global mon
+    while mon is None:
+        time.sleep(5)
+    logging.info('Starting homekit server')
+    start_homekit(mon, host=host, port=port, monitoring=False, handle_sigint=False)
+
+
+def init_homekit(port, host):
+    # We'll start homekit once the device is connected
+    t = threading.Thread(target=init_homekit_target, args=(port, host, ))
+    t.start()
 
 
 #############################################################################
@@ -308,10 +328,10 @@ def start_server_homekit():
     """ Start monitoring, flask/dash server and homekit accessory """
     # Based on http://flask.pocoo.org/snippets/133/
     try:
-        from .homekit import PORT, start_homekit
+        from .homekit import PORT
     except:
         # the case of running not from the installed module
-        from homekit import PORT, start_homekit
+        from homekit import PORT
 
     host = my_ip()
     parser = optparse.OptionParser()
@@ -333,25 +353,9 @@ def start_server_homekit():
     _name = options.name
 
     # Start monitoring
-    t_monitor = start_monitor(name=options.name)
-    # Start homekit
-    t_homekit = start_homekit(mon=mon, host=options.host, port=int(options.port_homekit),
-                              monitoring=False, handle_sigint=False)
-
-    # # Register Ctrl-C Call-backs
-    # def handle_control_c(*args, **kwargs):
-    #     logging.info('Shutting down homekit...')
-    #     t_homekit.signal_handler(*args, **kwargs)
-    #     logging.info('Shutting down monitoring...')
-    #     global _monitoring
-    #     _monitoring = False
-    #     time.sleep(2)
-    #     logging.info('Shutting down flask server...')
-    #     import sys
-    #     sys.exit(0)
-    #
-    # signal.signal(signal.SIGINT, handle_control_c)
-
+    t_monitor = start_monitor()
+    # Start a thread that will initialize homekit once device is connected
+    init_homekit(host=options.host, port=int(options.port_homekit))
     # Start server
     app.run(host=options.host, port=int(options.port_flask))
 
@@ -391,7 +395,7 @@ def start_server():
 
     # Start monitoring
     if not options.no_monitoring:
-        start_monitor(name=options.name, interval=int(options.interval))
+        start_monitor(interval=int(options.interval))
 
     # Start server
     if not options.no_server:
