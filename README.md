@@ -148,6 +148,35 @@ Finally, HomeKit and web-server could be combined:
 
 which will start homekit accessory and flask web-server on the local IP address.
 
+## Running web-server as a service
+
+The low-key solution for running server on the remote machine (e.g. on Raspberry py) is to call
+
+	nohup start_server_homekit -N default_room &
+
+Another alternative is to register it as a [service in the system](https://www.raspberrypi.org/documentation/linux/usage/systemd.md). For this create the file `/etc/systemd/system/co2server.service` under `sudo` (be sure to provide an appropriate full path to `co2meter_server_homekit` and choose proper `WorkingDirectory`):
+
+	[Unit]
+	Description=CO2 monitoring service
+	After=network.target
+
+	[Service]
+	ExecStart=/home/pi/.virtualenvs/system3/bin/co2meter_server_homekit -N default_room
+	WorkingDirectory=/home/pi/home/co2
+	Restart=always
+	User=pi
+
+	[Install]
+	WantedBy=multi-user.target
+
+Then the server could be started:
+
+	sudo systemctl start co2server.service
+
+as well as stopped (`systemctl stop`), restarted (`systemctl restart`) or its terminal output could be displayed (`systemctl status`). If you'd like to start it automatically on reboot, call:
+
+	sudo systemctl enable co2server.service
+
 
 # Notes
 
