@@ -44,7 +44,7 @@ Please note, that there could be a potential name conflict with the library `hid
 
 In order to be able to start monitoring web-server a few extra packages are needed. Basic web-server will allow reading the current value in browser, downloading data in CSV/JSON and monitoring the status with a simple dashboard. Dependencies could be installed via pip:
 
-	pip install -U flask plotly pandas
+	pip install -U flask pandas
 
 
 ### Optional: Apple HomeKit compatibility
@@ -182,7 +182,7 @@ as well as stopped (`systemctl stop`), restarted (`systemctl restart`) or its te
 
 * The output from the device is encrypted. I've found no description of the algorithm, except some GitHub libraries with almost identical implementation of decoding: [dmage/co2mon](https://github.com/dmage/co2mon/blob/master/libco2mon/src/co2mon.c), [maizy/ambient7](https://github.com/maizy/ambient7/blob/master/mt8057-agent/src/main/scala/ru/maizy/ambient7/mt8057agent/MessageDecoder.scala), [Lokis92/h1](https://github.com/Lokis92/h1/blob/master/co2java/src/Co2mon.java). This code is based on the repos above (method `CO2monitor._decrypt()`).
 * The web-server does not do caching (yet) and was not tested (yet) over a long period of up-time.
-* The whole setup is a bit heavy for such simple problem and (in case someone has time) could be simplified: e.g. talking to the device (in linux) could be done via reading/writing to `/dev/hidraw*`, parsing of the CSV and transformations could be done without `pandas`, and the dashboard could be done in a plain `flask` using `plotly.js` without python-binding.
+* The whole setup is a bit heavy for such simple problem and (in case someone has time) could be simplified: e.g. talking to the device (in linux) could be done via reading/writing to `/dev/hidraw*`, parsing of the CSV and transformations could be done without `pandas`.
 
 
 # Resources

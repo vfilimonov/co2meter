@@ -20,7 +20,6 @@ except ImportError:
 
 import flask
 from flask import request, render_template, jsonify
-import plotly
 import pandas as pd
 
 import co2meter as co2
@@ -128,7 +127,7 @@ def shutdown():
 
 
 #############################################################################
-# Dashboard on plotly
+# Dashboard on plotly.js
 #############################################################################
 def prepare_data(name=None, span='24H'):
     data = read_logs(name)
@@ -187,14 +186,18 @@ def chart_co2_temp(name=None, freq='24H'):
         staticPlot = False
 
     # Make figure
+    index = data.index.format()
+    co2 = list(pd.np.where(data.co2.isnull(), None, data.co2))
+    temp = list(pd.np.where(data.temp.isnull(), None, data.temp))
+
     d_co2 = {'mode': 'lines+markers', 'type': 'scatter',
              'name': 'CO2 concentration',
              'xaxis': 'x1', 'yaxis': 'y1',
-             'x': data.index, 'y': data['co2'].values}
+             'x': index, 'y': co2}
     d_temp = {'mode': 'lines+markers', 'type': 'scatter',
               'name': 'Temperature',
               'xaxis': 'x1', 'yaxis': 'y2',
-              'x': data.index, 'y': data['temp'].values}
+              'x': index, 'y': temp}
 
     config = {'displayModeBar': False, 'staticPlot': staticPlot}
     layout = {'margin': {'l': 30, 'r': 10, 'b': 30, 't': 30},
@@ -209,8 +212,7 @@ def chart_co2_temp(name=None, freq='24H'):
                               caption('Temperature', 0.5, 0.45)]
               }
     fig = {'data': [d_co2, d_temp], 'layout': layout, 'config': config}
-    return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-    # return jsonify(fig)
+    return jsonify(fig)
 
 
 #############################################################################
