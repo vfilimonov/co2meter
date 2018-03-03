@@ -156,13 +156,10 @@ def rect(y0, y1, color):
             'fillcolor': color, 'opacity': 0.2, 'line': {'width': 0}}
 
 
-def ts2trace(ts, name=None, mode='lines+markers'):
-    trace = {'x': ts.index,
-             'y': ts.values,
-             'mode': mode}
-    if name is not None:
-        trace['name'] = name
-    return trace
+def caption(title, x, y):
+    return {'xref': 'paper', 'yref': 'paper', 'x': x, 'y': y, 'text': title,
+            'showarrow': False, 'font': {'size': 16},
+            'xanchor': 'center', 'yanchor': 'bottom'}
 
 
 #############################################################################
@@ -174,6 +171,8 @@ def chart_co2_temp(name=None, freq='24H'):
 
     co2_min = min(500, data['co2'].min() - 50)
     co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
+    t_min = min(15, data['temp'].min())
+    t_max = max(27, data['temp'].max())
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -188,23 +187,30 @@ def chart_co2_temp(name=None, freq='24H'):
         staticPlot = False
 
     # Make figure
-    fig = plotly.tools.make_subplots(rows=2, cols=1, vertical_spacing=0.1,
-                                     print_grid=False, shared_xaxes=True,
-                                     subplot_titles=('CO2 concentration', 'Temperature'))
-    fig.append_trace(ts2trace(data['co2'], 'CO2 concentration'), 1, 1)
-    fig.append_trace(ts2trace(data['temp'], 'Temperature'), 2, 1)
+    d_co2 = {'mode': 'lines+markers', 'type': 'scatter',
+             'name': 'CO2 concentration',
+             'xaxis': 'x1', 'yaxis': 'y1',
+             'x': data.index, 'y': data['co2'].values}
+    d_temp = {'mode': 'lines+markers', 'type': 'scatter',
+              'name': 'Temperature',
+              'xaxis': 'x1', 'yaxis': 'y2',
+              'x': data.index, 'y': data['temp'].values}
 
-    # We'll need to add config, which is not in the plotly...Figure type
-    fig = dict(fig)
-    fig['config'] = {'displayModeBar': False, 'staticPlot': staticPlot}
-    fig['layout']['margin'] = {'l': 30, 'r': 10, 'b': 30, 't': 30}
-    fig['layout']['showlegend'] = False
-    fig['layout']['shapes'] = [rect_green, rect_yellow, rect_red]
-    fig['layout']['yaxis1']['range'] = [co2_min, co2_max]
-    fig['layout']['yaxis2']['range'] = [min(15, data['temp'].min()),
-                                        max(27, data['temp'].max())]
-
+    config = {'displayModeBar': False, 'staticPlot': staticPlot}
+    layout = {'margin': {'l': 30, 'r': 10, 'b': 30, 't': 30},
+              'showlegend': False,
+              'shapes': [rect_green, rect_yellow, rect_red],
+              'xaxis1': {'domain': [0, 1], 'anchor': 'y2'},
+              'yaxis1': {'domain': [0.55, 1], 'anchor': 'free', 'position': 0,
+                         'range': [co2_min, co2_max]},
+              'yaxis2': {'domain': [0, 0.45], 'anchor': 'x1',
+                         'range': [t_min, t_max]},
+              'annotations': [caption('CO2 concentration', 0.5, 1),
+                              caption('Temperature', 0.5, 0.45)]
+              }
+    fig = {'data': [d_co2, d_temp], 'layout': layout, 'config': config}
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    # return jsonify(fig)
 
 
 #############################################################################
