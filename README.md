@@ -38,7 +38,10 @@ Then installation of `co2meter` could be done via the `pip` utility:
 
 Optionally, if [pandas package](http://pandas.pydata.org/) is available then the data will be retrieved as pandas.DataFrames rather than list of tuples.
 
-Please note, that there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
+**Note 1**: there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
+
+**Note 2**: it was reported (#5), that pip might not automatically install `cython`, which is required to build `hidapi` module, and installation could fail with an `error code 1` in gcc. In this case `cython` should be installed manually: `pip install cython` or (Ubuntu/Raspbian) `sudo apt-get install cython`.
+
 
 ### Optional: flask web-server
 
