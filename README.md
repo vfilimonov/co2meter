@@ -147,7 +147,7 @@ CO2/temperature readings are stored in the `logs` folder. By default (if `-N` pa
 
 Finally, HomeKit and web-server could be combined:
 
-	start_server_homekit
+	co2meter_server_homekit
 
 which will start homekit accessory and flask web-server on the local IP address.
 
@@ -155,7 +155,7 @@ which will start homekit accessory and flask web-server on the local IP address.
 
 The low-key solution for running server on the remote machine (e.g. on Raspberry py) is to call
 
-	nohup start_server_homekit -N default_room &
+	nohup co2meter_server_homekit -N default_room &
 
 Another alternative is to register it as a [service in the system](https://www.raspberrypi.org/documentation/linux/usage/systemd.md). For this create the file `/etc/systemd/system/co2server.service` under `sudo` (be sure to provide an appropriate full path to `co2meter_server_homekit` and choose proper `WorkingDirectory`):
 
