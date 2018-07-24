@@ -29,6 +29,5 @@ setup(name='CO2meter',
                               'co2meter_server_homekit = co2meter:start_server_homekit',
                               ],
       },
-      classifiers=['Programming Language :: Python :: 2',
-                   'Programming Language :: Python :: 3', ]
+      classifiers=['Programming Language :: Python :: 3', ]
       )

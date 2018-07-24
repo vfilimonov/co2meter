@@ -28,7 +28,7 @@ If the script is not intended to be started under `root`, proper permissions for
 and run `sudo udevadm control --reload-rules && udevadm trigger`.
 
 ###### Windows
-For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python 2.7](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
+For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
 ### Installation of python package
 
@@ -40,8 +40,7 @@ Optionally, if [pandas package](http://pandas.pydata.org/) is available then the
 
 **Note 1**: there could be a potential name conflict with the library `hid`. In this case the import of the module in python will fail with the error `AttributeError: 'module' object has no attribute 'windll'` (see [here](https://github.com/vfilimonov/co2meter/issues/1)). If this happens, please try uninstalling `hid` module (executing `pip uninstall hid` in the console).
 
-**Note 2**: it was reported (#5), that pip might not automatically install `cython`, which is required to build `hidapi` module, and installation could fail with an `error code 1` in gcc. In this case `cython` should be installed manually: `pip install cython` or (Ubuntu/Raspbian) `sudo apt-get install cython`.
-
+**Note 2**: there were reports on issues with installation on Raspbian Stretch Lite (#5), where build failed with and `error code 1` in `gcc`. Most likely the reason is in missing dependencies. Possible solution is [described in the comment](https://github.com/vfilimonov/co2meter/issues/5#issuecomment-407378515).
 
 ### Optional: flask web-server
 
@@ -59,6 +58,8 @@ In order to be able to add co2monitor to Apple Home application (iPhone/iPad) HA
 In case when the "hosting server" is running on OSX no extra libraries are needed. For Linux (e.g. Raspberry Pi) servers you will need Avahi/Bonjour installed (due to zeroconf package):
 
 	sudo apt-get install libavahi-compat-libdnssd-dev
+
+**Note**: Setup was tested on Python 3.5. `homekit` compatibility might not be available on Python 2.7 (see #7).
 
 
 # General usage
