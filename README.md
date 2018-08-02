@@ -51,9 +51,9 @@ In order to be able to start monitoring web-server a few extra packages are need
 
 ### Optional: Apple HomeKit compatibility
 
-In order to be able to add co2monitor to Apple Home application (iPhone/iPad) HAP-python is required:
+In order to be able to add co2monitor to Apple Home application (iPhone/iPad) HAP-python of version 1.1.5 is required (it was reported that the `co2meter` [is incompatible with the newer version](https://github.com/vfilimonov/co2meter/issues/7)):
 
-	pip install HAP-python
+	pip install HAP-python==1.1.5
 
 In case when the "hosting server" is running on OSX no extra libraries are needed. For Linux (e.g. Raspberry Pi) servers you will need Avahi/Bonjour installed (due to zeroconf package):
 
