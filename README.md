@@ -18,7 +18,7 @@ Necessary libraries (`libusb`, `hidapi`) could be installed via [Homebrew](http:
 
 `libusb` could be retrieved via `apt-get`
 
-	sudo apt-get install libusb-1.0-0-dev
+	sudo apt-get install libusb-1.0-0-dev libudev-dev
 
 If the script is not intended to be started under `root`, proper permissions for the device should be set. Put the following two lines into a file `/etc/udev/rules.d/98-co2mon.rules`:
 
