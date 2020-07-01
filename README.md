@@ -59,6 +59,10 @@ In case when the "hosting server" is running on OSX no extra libraries are neede
 
 	sudo apt-get install libavahi-compat-libdnssd-dev
 
+**Note**: It was reported, that newer version of zeroconf has [compatibility issues](https://github.com/vfilimonov/co2meter/issues/17), but reverting to 0.23 remediated this:
+
+	pip install -U zeroconf==0.23
+
 **Note**: Setup was tested on Python 3.5. `homekit` compatibility might not be available on Python 2.7 (see #7).
 
 
