@@ -1,3 +1,4 @@
+# coding=utf-8
 """ Class for reading data from CO2 monitor.
 
     (c) Vladimir Filimonov, 2016-2018
@@ -420,7 +421,7 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
     if plot_temp:
         ax2 = ax.twinx()
         ax2.plot(temp.index, temp.values, color=_COLORS['b'])
-        ax2.set_ylabel('Temperature, C')
+        ax2.set_ylabel('Temperature, °C')
         yl = ax2.get_ylim()
         ax2.set_ylim([min(19, yl[0]), max(23, yl[1])])
         ax2.grid('off')

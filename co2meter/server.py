@@ -1,3 +1,4 @@
+# coding=utf-8
 """ Flask server for CO2meter
 
     (c) Vladimir Filimonov, 2018
@@ -135,7 +136,10 @@ def prepare_data(name=None, span='24H'):
     if span != 'FULL':
         data = data.last(span)
 
-    if span == '24H':
+    if span == '1H':
+        # int64 has problems with serialisation, translate to floats
+        data['co2'] = pd.to_numeric(data['co2'], downcast='float')
+    elif span == '24H':
         data = data.resample('60s').mean()
     elif span == '7D':
         data = data.resample('600s').mean()
@@ -168,10 +172,11 @@ def caption(title, x, y):
 def chart_co2_temp(name=None, freq='24H'):
     data = prepare_data(name, freq)
 
-    co2_min = min(500, data['co2'].min() - 50)
-    co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
-    t_min = min(15, data['temp'].min())
-    t_max = max(27, data['temp'].max())
+    # Fit all values without unnecessary empty space
+    co2_min = data['co2'].min() * 0.95
+    co2_max = data['co2'].max() * 1.05
+    t_min = data['temp'].min() * 0.95
+    t_max = data['temp'].max() * 1.05
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -191,11 +196,11 @@ def chart_co2_temp(name=None, freq='24H'):
     temp = list(pd.np.where(data.temp.isnull(), None, data.temp))
 
     d_co2 = {'mode': 'lines+markers', 'type': 'scatter',
-             'name': 'CO2 concentration',
+             'name': 'CO2 concentration (ppm)',
              'xaxis': 'x1', 'yaxis': 'y1',
              'x': index, 'y': co2}
     d_temp = {'mode': 'lines+markers', 'type': 'scatter',
-              'name': 'Temperature',
+              'name': 'Temperature (°C)',
               'xaxis': 'x1', 'yaxis': 'y2',
               'x': index, 'y': temp}
 
@@ -208,8 +213,8 @@ def chart_co2_temp(name=None, freq='24H'):
                          'range': [co2_min, co2_max]},
               'yaxis2': {'domain': [0, 0.45], 'anchor': 'x1',
                          'range': [t_min, t_max]},
-              'annotations': [caption('CO2 concentration', 0.5, 1),
-                              caption('Temperature', 0.5, 0.45)]
+              'annotations': [caption('CO2 concentration (ppm)', 0.5, 1),
+                              caption('Temperature (°C)', 0.5, 0.45)]
               }
     fig = {'data': [d_co2, d_temp], 'layout': layout, 'config': config}
     return jsonify(fig)
