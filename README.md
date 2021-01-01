@@ -83,7 +83,9 @@ Read CO2 and temperature values from the device with the timestamp:
 
 	mon.read_data()
 
-If `pandas` is available, the output will be formated as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be retured.
+If `pandas` is available, the output will be formatted as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be returned.
+
+**Note**: For certain CO2 meter models packages that are sent over USB are not encrypted. In this case `mon.read_data()` could hang without any data returning (see issue #16). If this happens, instantiating CO2monitor object as `mon = co2.CO2monitor(bypass_decrypt=True)` might solve the issue.
 
 ### Continuous monitoring
 
