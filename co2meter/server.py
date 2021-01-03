@@ -37,8 +37,11 @@ _IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
 _IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
 _RANGE_MID = [800, 1200]
 _CO2_MAX_VALUE = 3200  # Cut our yaxis here
+_DEGREES_CELSIUS = "&#8451;" # Unicode U+2103, Degree Celisus
+_DEGREES_FAHRENHEIT = "&#8457;" # Unicode U+2109, Degree Fahrenheit
 
 _name = _DEFAULT_NAME
+_fahrenheit = False
 
 ###############################################################################
 mon = None
@@ -76,10 +79,18 @@ def home():
         color = _COLORS['y']
         img = _IMG_Y
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
+
+    temperature = vals[2]    
+    deg = _DEGREES_CELSIUS
+    global _fahrenheit
+    if _fahrenheit:
+        deg = _DEGREES_FAHRENHEIT
+        temperature = round(celsiusToFahrenheit(temperature), ndigits=1)
+
     # Return template
     return render_template('index.html', image=img, timestamp=vals[0],
-                           co2=vals[1], color=color, temp=vals[2], url=_URL,
-                           status=status)
+                           co2=vals[1], color=color, temp=temperature, url=_URL,
+                           status=status, degrees=deg)
 
 
 #############################################################################
@@ -102,7 +113,6 @@ def log_csv(logname):
 def log_json(logname):
     data = read_logs(name=logname)
     return wrap_json(data)
-
 
 #############################################################################
 @app.route('/rename')
@@ -134,6 +144,10 @@ def prepare_data(name=None, span='24H'):
     data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
     if span != 'FULL':
         data = data.last(span)
+
+    global _fahrenheit
+    if _fahrenheit:
+        data['temp'] = data['temp'].apply(celsiusToFahrenheit)
 
     if span == '24H':
         data = data.resample('60s').mean()
@@ -168,10 +182,20 @@ def caption(title, x, y):
 def chart_co2_temp(name=None, freq='24H'):
     data = prepare_data(name, freq)
 
+    defaultTMin = 15
+    defaultTMax = 27
+    temperatureData = data['temp']
+    deg = _DEGREES_CELSIUS
+    global _fahrenheit
+    if _fahrenheit:
+        defaultTMin = 60
+        defaultTMax = 80
+        deg = _DEGREES_FAHRENHEIT
+
     co2_min = min(500, data['co2'].min() - 50)
     co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
-    t_min = min(15, data['temp'].min())
-    t_max = max(27, data['temp'].max())
+    t_min = min(defaultTMin, temperatureData.min())
+    t_max = max(defaultTMax, temperatureData.max())
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -208,8 +232,8 @@ def chart_co2_temp(name=None, freq='24H'):
                          'range': [co2_min, co2_max]},
               'yaxis2': {'domain': [0, 0.45], 'anchor': 'x1',
                          'range': [t_min, t_max]},
-              'annotations': [caption('CO2 concentration', 0.5, 1),
-                              caption('Temperature', 0.5, 0.45)]
+              'annotations': [caption('CO2 concentration (ppm)', 0.5, 1),
+                              caption(f'Temperature ({deg})', 0.5, 0.45)]
               }
     fig = {'data': [d_co2, d_temp], 'layout': layout, 'config': config}
     return jsonify(fig)
@@ -394,14 +418,22 @@ def start_server():
     parser.add_option("-d", "--debug",
                       action="store_true", dest="debug",
                       help=optparse.SUPPRESS_HELP)
+    parser.add_option("-F", "--fahrenheit",
+                      help="Show the temperature in Fahrenheit [default False]",
+                      action="store_true",
+                      default=False,
+                      dest="fahrenheit")
     options, _ = parser.parse_args()
 
     if options.debug and not options.no_monitoring:
         parser.error("--debug option could be used only with --no_monitoring")
     global _name
     _name = options.name
+    global _fahrenheit
+    _fahrenheit = options.fahrenheit
 
     # Start monitoring
+
     if not options.no_monitoring:
         start_monitor(interval=int(options.interval))
 
@@ -446,6 +478,9 @@ def wrap_table(data):
     res += '</tbody></table>'
     return res
 
+###############################################################################
+def celsiusToFahrenheit(c):
+    return (9 * float(c)) / 5 + 32
 
 ###############################################################################
 if __name__ == '__main__':

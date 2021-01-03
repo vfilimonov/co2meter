@@ -24,7 +24,7 @@
     <font size="+2">
       {{ timestamp }}
       <br>CO2 concentration: <font color="{{ color }}">{{ co2 }} ppm</font>
-      <br>Temperature: {{ temp }}&#8451;
+      <br>Temperature: {{ temp }}{{ degrees|safe }}
     </font>
   <br><br><a href="/log">Data log</a>
   (<a href="/log.csv">csv</a>,&nbsp;<a href="/log.json">json</a>)
