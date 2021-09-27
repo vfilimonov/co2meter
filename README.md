@@ -30,6 +30,9 @@ and run `sudo udevadm control --reload-rules && udevadm trigger`.
 ###### Windows
 For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
+**Note**: Some users have reported, that for certain models of CO2 meter devices under Windows a special software should be running in order for the `CO2Meter` to work (see [issue #16](https://github.com/vfilimonov/co2meter/issues/16)). More speficically, `ZG.exe` downloaded from "ZyAura" website (the link is [in the comment](https://github.com/vfilimonov/co2meter/issues/16#issuecomment-871743048)). 
+
+
 ### Installation of python package
 
 Then installation of `co2meter` could be done via the `pip` utility:
