@@ -68,7 +68,7 @@ def convert_temperature(val):
 # Class to operate with CO2 monitor
 #############################################################################
 class CO2monitor:
-    def __init__(self, bypass_decrypt=False):
+    def __init__(self, bypass_decrypt=False, interface_path=None):
         """ Initialize the CO2monitor object and retrieve basic HID info.
 
             Args:
@@ -78,13 +78,16 @@ class CO2monitor:
                     If this happens, setting bypass_decrypt to True might
                     solve the issue.
 
+                interface_path (bytes): when multiple devices are active, allows
+                    you to choose which one should be used for this CO2monitor instance.
             See also:
                 https://github.com/vfilimonov/co2meter/issues/16
         """
         self.bypass_decrypt = bypass_decrypt
         self._info = {'vendor_id': _CO2MON_HID_VENDOR_ID,
                       'product_id': _CO2MON_HID_PRODUCT_ID}
-        self._h = hid.device()
+        self.init_device(interface_path)
+
         # Number of requests to open connection
         self._status = 0
 
@@ -108,6 +111,21 @@ class CO2monitor:
             self._info['product_name'] = self._h.get_product_string()
             self._info['serial_no'] = self._h.get_serial_number_string()
 
+    def init_device(self, interface_path=None):
+        """" Finds a device in the list of available devices and opens one with interface_number or first available
+                if no interface_number is None
+        """
+        checked_interfaces = []
+        for interface in hid.enumerate(self._info['vendor_id'], self._info['product_id']):
+            if interface_path is None or interface['path'] == interface_path:
+                self._h = hid.device()
+                self._info['path'] = interface['path']
+                return
+
+            checked_interfaces.append(interface)
+
+        raise Exception('Unable to find hid device.', interface_path, checked_interfaces)
+
     #########################################################################
     def hid_open(self, send_magic_table=True):
         """ Open connection to HID device. If connection is already open,
@@ -122,7 +140,7 @@ class CO2monitor:
         """
         if self._status == 0:
             # If connection was not opened before
-            self._h.open(self._info['vendor_id'], self._info['product_id'])
+            self._h.open_path(self._info['path'])
             if send_magic_table:
                 self._h.send_feature_report(self._magic_table)
         self._status += 1
