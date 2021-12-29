@@ -221,7 +221,7 @@ Scientific and commercial infographics:
 
 # Many kudos to contributors
 
-@hurricup, @beckbria, @ngoldbaum
+@svart, @hurricup, @beckbria, @ngoldbaum
 
 # License
 
