@@ -42,6 +42,7 @@ _DEGREES_FAHRENHEIT = "&#8457;" # Unicode U+2109, Degree Fahrenheit
 
 _name = _DEFAULT_NAME
 _fahrenheit = False
+_tight_margins=False
 
 ###############################################################################
 mon = None
@@ -149,7 +150,10 @@ def prepare_data(name=None, span='24H'):
     if _fahrenheit:
         data['temp'] = data['temp'].apply(celsiusToFahrenheit)
 
-    if span == '24H':
+    if span == '1H':
+        # int64 has problems with serialisation, translate to floats
+        data['co2'] = pd.to_numeric(data['co2'], downcast='float')
+    elif span == '24H':
         data = data.resample('60s').mean()
     elif span == '7D':
         data = data.resample('600s').mean()
@@ -192,10 +196,16 @@ def chart_co2_temp(name=None, freq='24H'):
         defaultTMax = 80
         deg = _DEGREES_FAHRENHEIT
 
-    co2_min = min(500, data['co2'].min() - 50)
-    co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
-    t_min = min(defaultTMin, temperatureData.min())
-    t_max = max(defaultTMax, temperatureData.max())
+    if _tight_margins:
+        co2_min = data['co2'].min() * 0.95
+        co2_max = data['co2'].max() * 1.05
+        t_min = data['temp'].min() * 0.95
+        t_max = data['temp'].max() * 1.05
+    else:
+        co2_min = min(500, data['co2'].min() - 50)
+        co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
+        t_min = min(defaultTMin, temperatureData.min())
+        t_max = max(defaultTMax, temperatureData.max())
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -422,6 +432,9 @@ def start_server():
     parser.add_option("-b", "--bypass-decrypt",
                       help="Bypass decrypt (needed for certain models of the device)",
                       action="store_true", dest="bypass_decrypt")
+    parser.add_option("-t", "--tight-margins",
+                      help="Use tight margins when plotting",
+                      action="store_true", dest="tight_margins")
     options, _ = parser.parse_args()
 
     if options.debug and not options.no_monitoring:
@@ -430,6 +443,8 @@ def start_server():
     _name = options.name
     global _fahrenheit
     _fahrenheit = options.fahrenheit
+    global _tight_margins
+    _tight_margins = options.tight_margins
 
     # Start monitoring
 
