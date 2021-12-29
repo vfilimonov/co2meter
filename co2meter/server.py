@@ -1,6 +1,6 @@
 """ Flask server for CO2meter
 
-    (c) Vladimir Filimonov, 2018
+    (c) Vladimir Filimonov, 2018-2021
     E-mail: vladimir.a.filimonov@gmail.com
 """
 import optparse

@@ -219,6 +219,10 @@ Scientific and commercial infographics:
 * Commercial infographics on CO2 concentration and productivity ([from dadget.ru](http://dadget.ru/katalog/zdorove/detektor-uglekislogo-gaza)):
 ![CO2 concentration and productivity](https://user-images.githubusercontent.com/1324881/36335370-bc92728a-137f-11e8-8066-8f2295638c7c.jpg)
 
+# Many kudos to contributors
+
+@hurricup, @beckbria, @ngoldbaum
+
 # License
 
 CO2meter package is released under the MIT license.

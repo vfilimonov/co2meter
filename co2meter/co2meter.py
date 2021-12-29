@@ -1,6 +1,6 @@
 """ Class for reading data from CO2 monitor.
 
-    (c) Vladimir Filimonov, 2016-2018
+    (c) Vladimir Filimonov, 2016-2021
     E-mail: vladimir.a.filimonov@gmail.com
 """
 try:
@@ -405,7 +405,7 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
 
     # DataFrames
     if (ewma_halflife is not None) and (ewma_halflife > 0):
-        halflife = pd.Timedelta(ewma_halflife, 's') / pd.np.mean(pd.np.diff(data.index))
+        halflife = pd.Timedelta(ewma_halflife, 's') / np.mean(np.diff(data.index))
         co2 = pd.ewma(data.co2, halflife=halflife, min_periods=0)
         temp = pd.ewma(data.temp, halflife=2 * halflife, min_periods=0)
     else:
@@ -414,8 +414,8 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
 
     co2_r = co2.copy()
     co2_g = co2.copy()
-    co2_r[co2_r <= CO2_HIGH] = pd.np.NaN
-    co2_g[co2_g >= CO2_LOW] = pd.np.NaN
+    co2_r[co2_r <= CO2_HIGH] = np.NaN
+    co2_g[co2_g >= CO2_LOW] = np.NaN
 
     # Plotting
     ax = kwargs.pop('ax', plt.gca())
