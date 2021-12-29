@@ -327,22 +327,19 @@ def start_monitor(interval=_DEFAULT_INTERVAL, bypass_decrypt=False):
 
 
 #############################################################################
-def init_homekit_target(port, host):
-    try:
-        from .homekit import start_homekit
-    except:
-        from homekit import start_homekit
+def init_homekit_target(port, host, bypass_decrypt):
+    from co2meter.homekit import start_homekit
 
     global mon
     while mon is None:
         time.sleep(5)
     logging.info('Starting homekit server')
-    start_homekit(mon, host=host, port=port, monitoring=False, handle_sigint=False)
+    start_homekit(mon, host=host, port=port, monitoring=False, handle_sigint=False, bypass_decrypt=bypass_decrypt)
 
 
-def init_homekit(port, host):
+def init_homekit(port, host, bypass_decrypt):
     # We'll start homekit once the device is connected
-    t = threading.Thread(target=init_homekit_target, args=(port, host, ))
+    t = threading.Thread(target=init_homekit_target, args=(port, host, bypass_decrypt, ))
     t.start()
 
 
@@ -359,11 +356,7 @@ def my_ip():
 def start_server_homekit():
     """ Start monitoring, flask/dash server and homekit accessory """
     # Based on http://flask.pocoo.org/snippets/133/
-    try:
-        from .homekit import PORT
-    except:
-        # the case of running not from the installed module
-        from homekit import PORT
+    from co2meter.homekit import PORT
 
     host = my_ip()
     parser = optparse.OptionParser()
@@ -390,7 +383,7 @@ def start_server_homekit():
     # Start monitoring
     t_monitor = start_monitor()
     # Start a thread that will initialize homekit once device is connected
-    init_homekit(host=options.host, port=int(options.port_homekit))
+    init_homekit(host=options.host, port=int(options.port_homekit), bypass_decrypt=bool(options.bypass_decrypt))
     # Start server
     app.run(host=options.host, port=int(options.port_flask))
 

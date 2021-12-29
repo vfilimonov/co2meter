@@ -131,7 +131,7 @@ def start_homekit(mon=None, port=PORT, host=None, monitoring=True,
                   handle_sigint=True, bypass_decrypt=False):
     logging.basicConfig(level=logging.INFO)
 
-    acc = CO2Accessory(mon=mon, pincode=PINCODE, monitoring=monitoring)
+    acc = CO2Accessory(mon=mon, pincode=PINCODE, monitoring=monitoring, bypass_decrypt=bypass_decrypt)
     # Start the accessory on selected port
     driver = AccessoryDriver(acc, port=port, address=host)
 
