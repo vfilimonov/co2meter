@@ -1,3 +1,4 @@
+# coding=utf-8
 """ Flask server for CO2meter
 
     (c) Vladimir Filimonov, 2018-2021
@@ -225,11 +226,11 @@ def chart_co2_temp(name=None, freq='24H'):
     temp = list(pd.np.where(data.temp.isnull(), None, data.temp))
 
     d_co2 = {'mode': 'lines+markers', 'type': 'scatter',
-             'name': 'CO2 concentration',
+             'name': 'CO2 concentration (ppm)',
              'xaxis': 'x1', 'yaxis': 'y1',
              'x': index, 'y': co2}
     d_temp = {'mode': 'lines+markers', 'type': 'scatter',
-              'name': 'Temperature',
+              'name': 'Temperature (°C)',
               'xaxis': 'x1', 'yaxis': 'y2',
               'x': index, 'y': temp}
 
