@@ -22,8 +22,9 @@ import os
 plt = None  # To be imported on demand only
 try:
     import pandas as pd
+    import numpy as np
 except ImportError:
-    pd = None
+    pd = np = None
 
 _CO2MON_HID_VENDOR_ID = 0x04d9
 _CO2MON_HID_PRODUCT_ID = 0xa052
@@ -68,9 +69,20 @@ def convert_temperature(val):
 # Class to operate with CO2 monitor
 #############################################################################
 class CO2monitor:
-    def __init__(self):
+    def __init__(self, bypass_decrypt=False):
         """ Initialize the CO2monitor object and retrieve basic HID info.
+
+            Args:
+                bypass_decrypt (bool): For certain CO2 meter models packages that
+                    are sent over USB are not encrypted. In this case instance
+                    of CO2monitor will return no data in .read_data().
+                    If this happens, setting bypass_decrypt to True might
+                    solve the issue.
+
+            See also:
+                https://github.com/vfilimonov/co2meter/issues/16
         """
+        self.bypass_decrypt = bypass_decrypt
         self._info = {'vendor_id': _CO2MON_HID_VENDOR_ID,
                       'product_id': _CO2MON_HID_PRODUCT_ID}
         self._h = hid.device()
@@ -166,6 +178,8 @@ class CO2monitor:
     def _decrypt(self, message):
         """ Decode message received from CO2 monitor.
         """
+        if self.bypass_decrypt:
+            return message
         # Rearrange message and convert to long int
         msg = list_to_longint([message[i] for i in [2, 4, 0, 7, 1, 6, 5, 3]])
         # XOR with magic_table

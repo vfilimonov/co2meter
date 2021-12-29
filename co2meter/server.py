@@ -277,7 +277,7 @@ def write_to_log(vals):
         f.write('%s,%d,%.1f\n' % vals)
 
 
-def read_co2_data():
+def read_co2_data(bypass_decrypt):
     """ A small hack to read co2 data from monitor in order to account for case
         when monitor is not initialized yet
     """
@@ -285,7 +285,7 @@ def read_co2_data():
     if mon is None:
         # Try to initialize
         try:
-            mon = co2.CO2monitor()
+            mon = co2.CO2monitor(bypass_decrypt=bypass_decrypt)
             # Sleep. If we read from device before it is calibrated, we'll
             # get wrong values
             time.sleep(_INIT_TIME)
@@ -299,11 +299,11 @@ def read_co2_data():
         return None
 
 
-def monitoring_CO2(interval):
+def monitoring_CO2(interval, bypass_decrypt):
     """ Tread for monitoring / logging """
     while _monitoring:
         # Request concentration and temperature
-        vals = read_co2_data()
+        vals = read_co2_data(bypass_decrypt=bypass_decrypt)
         if vals is None:
             logging.info('[%s] monitor is not connected' % co2.now())
         else:
@@ -315,13 +315,13 @@ def monitoring_CO2(interval):
 
 
 #############################################################################
-def start_monitor(interval=_DEFAULT_INTERVAL):
+def start_monitor(interval=_DEFAULT_INTERVAL, bypass_decrypt=False):
     """ Start CO2 monitoring in a thread """
     logging.basicConfig(level=logging.INFO)
 
     global _monitoring
     _monitoring = True
-    t = threading.Thread(target=monitoring_CO2, args=(interval,))
+    t = threading.Thread(target=monitoring_CO2, args=(interval, bypass_decrypt, ))
     t.start()
     return t
 
@@ -379,6 +379,9 @@ def start_server_homekit():
     parser.add_option("-N", "--name",
                       help="Name for the log file [default %s]" % _DEFAULT_NAME,
                       default=_DEFAULT_NAME)
+    parser.add_option("-b", "--bypass-decrypt",
+                      help="Bypass decrypt (needed for certain models of the device)",
+                      action="store_true", dest="bypass_decrypt")
     options, _ = parser.parse_args()
 
     global _name
@@ -423,6 +426,9 @@ def start_server():
                       action="store_true",
                       default=False,
                       dest="fahrenheit")
+    parser.add_option("-b", "--bypass-decrypt",
+                      help="Bypass decrypt (needed for certain models of the device)",
+                      action="store_true", dest="bypass_decrypt")
     options, _ = parser.parse_args()
 
     if options.debug and not options.no_monitoring:
@@ -435,7 +441,7 @@ def start_server():
     # Start monitoring
 
     if not options.no_monitoring:
-        start_monitor(interval=int(options.interval))
+        start_monitor(interval=int(options.interval), bypass_decrypt=bool(options.bypass_decrypt))
 
     # Start server
     if not options.no_server:

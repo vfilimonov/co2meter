@@ -30,6 +30,9 @@ and run `sudo udevadm control --reload-rules && udevadm trigger`.
 ###### Windows
 For installation of `hidapi` package [Microsoft Visual C++ Compiler for Python](https://www.microsoft.com/en-us/download/details.aspx?id=44266) is required.
 
+**Note**: Some users have reported, that for certain models of CO2 meter devices under Windows a special software should be running in order for the `CO2Meter` to work (see [issue #16](https://github.com/vfilimonov/co2meter/issues/16)). More speficically, `ZG.exe` downloaded from "ZyAura" website (the link is [in the comment](https://github.com/vfilimonov/co2meter/issues/16#issuecomment-871743048)). 
+
+
 ### Installation of python package
 
 Then installation of `co2meter` could be done via the `pip` utility:
@@ -59,6 +62,10 @@ In case when the "hosting server" is running on OSX no extra libraries are neede
 
 	sudo apt-get install libavahi-compat-libdnssd-dev
 
+**Note**: It was reported, that newer version of zeroconf has [compatibility issues](https://github.com/vfilimonov/co2meter/issues/17), but reverting to 0.23 remediated this:
+
+	pip install -U zeroconf==0.23
+
 **Note**: Setup was tested on Python 3.5. `homekit` compatibility might not be available on Python 2.7 (see #7).
 
 
@@ -79,7 +86,9 @@ Read CO2 and temperature values from the device with the timestamp:
 
 	mon.read_data()
 
-If `pandas` is available, the output will be formated as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be retured.
+If `pandas` is available, the output will be formatted as `pandas.DataFrame` with columns `co2` and `temp` and datetime-index with the timestamp of measurement. Otherwise tuple `(timestamp, co2, temperature)` will be returned.
+
+**Note**: For certain CO2 meter models packages that are sent over USB are not encrypted. In this case `mon.read_data()` could hang without any data returning (see issue #16). If this happens, instantiating CO2monitor object as `mon = co2.CO2monitor(bypass_decrypt=True)` might solve the issue.
 
 ### Continuous monitoring
 
@@ -151,6 +160,8 @@ Finally, HomeKit and web-server could be combined:
 	co2meter_server_homekit
 
 which will start homekit accessory and flask web-server on the local IP address.
+
+**Note** If necessary, `bypass_decrypt` argument could be passed to the command line (e.g. `co2meter_server --bypass-decrypt`).
 
 ## Running web-server as a service
 
