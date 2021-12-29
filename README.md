@@ -161,6 +161,8 @@ Finally, HomeKit and web-server could be combined:
 
 which will start homekit accessory and flask web-server on the local IP address.
 
+**Note** If necessary, `bypass_decrypt` argument could be passed to the command line (e.g. `co2meter_server --bypass-decrypt`).
+
 ## Running web-server as a service
 
 The low-key solution for running server on the remote machine (e.g. on Raspberry py) is to call
@@ -216,6 +218,10 @@ Scientific and commercial infographics:
 ![CO2 concentration and indoor air quality](https://user-images.githubusercontent.com/1324881/36335369-bad5c820-137f-11e8-9193-c3ef1658d609.jpg)
 * Commercial infographics on CO2 concentration and productivity ([from dadget.ru](http://dadget.ru/katalog/zdorove/detektor-uglekislogo-gaza)):
 ![CO2 concentration and productivity](https://user-images.githubusercontent.com/1324881/36335370-bc92728a-137f-11e8-8066-8f2295638c7c.jpg)
+
+# Many kudos to contributors
+
+@hurricup, @beckbria, @ngoldbaum
 
 # License
 

@@ -1,7 +1,7 @@
 # coding=utf-8
 """ Flask server for CO2meter
 
-    (c) Vladimir Filimonov, 2018
+    (c) Vladimir Filimonov, 2018-2021
     E-mail: vladimir.a.filimonov@gmail.com
 """
 import optparse
@@ -38,8 +38,12 @@ _IMG_Y = '1324881/36358456-d8b513ba-150e-11e8-91eb-ade37733b19e'
 _IMG_R = '1324881/36358457-da3e3e8c-150e-11e8-85af-855571275d88'
 _RANGE_MID = [800, 1200]
 _CO2_MAX_VALUE = 3200  # Cut our yaxis here
+_DEGREES_CELSIUS = "&#8451;" # Unicode U+2103, Degree Celisus
+_DEGREES_FAHRENHEIT = "&#8457;" # Unicode U+2109, Degree Fahrenheit
 
 _name = _DEFAULT_NAME
+_fahrenheit = False
+_tight_margins=False
 
 ###############################################################################
 mon = None
@@ -77,10 +81,18 @@ def home():
         color = _COLORS['y']
         img = _IMG_Y
     co2 = '<font color="%s">%s ppm</font>' % (color, vals[1])
+
+    temperature = vals[2]    
+    deg = _DEGREES_CELSIUS
+    global _fahrenheit
+    if _fahrenheit:
+        deg = _DEGREES_FAHRENHEIT
+        temperature = round(celsiusToFahrenheit(temperature), ndigits=1)
+
     # Return template
     return render_template('index.html', image=img, timestamp=vals[0],
-                           co2=vals[1], color=color, temp=vals[2], url=_URL,
-                           status=status)
+                           co2=vals[1], color=color, temp=temperature, url=_URL,
+                           status=status, degrees=deg)
 
 
 #############################################################################
@@ -103,7 +115,6 @@ def log_csv(logname):
 def log_json(logname):
     data = read_logs(name=logname)
     return wrap_json(data)
-
 
 #############################################################################
 @app.route('/rename')
@@ -135,6 +146,10 @@ def prepare_data(name=None, span='24H'):
     data = pd.read_csv(StringIO(data), parse_dates=[0]).set_index('timestamp')
     if span != 'FULL':
         data = data.last(span)
+
+    global _fahrenheit
+    if _fahrenheit:
+        data['temp'] = data['temp'].apply(celsiusToFahrenheit)
 
     if span == '1H':
         # int64 has problems with serialisation, translate to floats
@@ -172,11 +187,26 @@ def caption(title, x, y):
 def chart_co2_temp(name=None, freq='24H'):
     data = prepare_data(name, freq)
 
-    # Fit all values without unnecessary empty space
-    co2_min = data['co2'].min() * 0.95
-    co2_max = data['co2'].max() * 1.05
-    t_min = data['temp'].min() * 0.95
-    t_max = data['temp'].max() * 1.05
+    defaultTMin = 15
+    defaultTMax = 27
+    temperatureData = data['temp']
+    deg = _DEGREES_CELSIUS
+    global _fahrenheit
+    if _fahrenheit:
+        defaultTMin = 60
+        defaultTMax = 80
+        deg = _DEGREES_FAHRENHEIT
+
+    if _tight_margins:
+        co2_min = data['co2'].min() * 0.95
+        co2_max = data['co2'].max() * 1.05
+        t_min = data['temp'].min() * 0.95
+        t_max = data['temp'].max() * 1.05
+    else:
+        co2_min = min(500, data['co2'].min() - 50)
+        co2_max = min(max(2000, data['co2'].max() + 50), _CO2_MAX_VALUE)
+        t_min = min(defaultTMin, temperatureData.min())
+        t_max = max(defaultTMax, temperatureData.max())
 
     rect_green = rect(co2_min, _RANGE_MID[0], _COLORS['g'])
     rect_yellow = rect(_RANGE_MID[0], _RANGE_MID[1], _COLORS['y'])
@@ -214,7 +244,7 @@ def chart_co2_temp(name=None, freq='24H'):
               'yaxis2': {'domain': [0, 0.45], 'anchor': 'x1',
                          'range': [t_min, t_max]},
               'annotations': [caption('CO2 concentration (ppm)', 0.5, 1),
-                              caption('Temperature (°C)', 0.5, 0.45)]
+                              caption(f'Temperature ({deg})', 0.5, 0.45)]
               }
     fig = {'data': [d_co2, d_temp], 'layout': layout, 'config': config}
     return jsonify(fig)
@@ -258,7 +288,7 @@ def write_to_log(vals):
         f.write('%s,%d,%.1f\n' % vals)
 
 
-def read_co2_data():
+def read_co2_data(bypass_decrypt):
     """ A small hack to read co2 data from monitor in order to account for case
         when monitor is not initialized yet
     """
@@ -266,7 +296,7 @@ def read_co2_data():
     if mon is None:
         # Try to initialize
         try:
-            mon = co2.CO2monitor()
+            mon = co2.CO2monitor(bypass_decrypt=bypass_decrypt)
             # Sleep. If we read from device before it is calibrated, we'll
             # get wrong values
             time.sleep(_INIT_TIME)
@@ -280,11 +310,11 @@ def read_co2_data():
         return None
 
 
-def monitoring_CO2(interval):
+def monitoring_CO2(interval, bypass_decrypt):
     """ Tread for monitoring / logging """
     while _monitoring:
         # Request concentration and temperature
-        vals = read_co2_data()
+        vals = read_co2_data(bypass_decrypt=bypass_decrypt)
         if vals is None:
             logging.info('[%s] monitor is not connected' % co2.now())
         else:
@@ -296,34 +326,31 @@ def monitoring_CO2(interval):
 
 
 #############################################################################
-def start_monitor(interval=_DEFAULT_INTERVAL):
+def start_monitor(interval=_DEFAULT_INTERVAL, bypass_decrypt=False):
     """ Start CO2 monitoring in a thread """
     logging.basicConfig(level=logging.INFO)
 
     global _monitoring
     _monitoring = True
-    t = threading.Thread(target=monitoring_CO2, args=(interval,))
+    t = threading.Thread(target=monitoring_CO2, args=(interval, bypass_decrypt, ))
     t.start()
     return t
 
 
 #############################################################################
-def init_homekit_target(port, host):
-    try:
-        from .homekit import start_homekit
-    except:
-        from homekit import start_homekit
+def init_homekit_target(port, host, bypass_decrypt):
+    from co2meter.homekit import start_homekit
 
     global mon
     while mon is None:
         time.sleep(5)
     logging.info('Starting homekit server')
-    start_homekit(mon, host=host, port=port, monitoring=False, handle_sigint=False)
+    start_homekit(mon, host=host, port=port, monitoring=False, handle_sigint=False, bypass_decrypt=bypass_decrypt)
 
 
-def init_homekit(port, host):
+def init_homekit(port, host, bypass_decrypt):
     # We'll start homekit once the device is connected
-    t = threading.Thread(target=init_homekit_target, args=(port, host, ))
+    t = threading.Thread(target=init_homekit_target, args=(port, host, bypass_decrypt, ))
     t.start()
 
 
@@ -340,11 +367,7 @@ def my_ip():
 def start_server_homekit():
     """ Start monitoring, flask/dash server and homekit accessory """
     # Based on http://flask.pocoo.org/snippets/133/
-    try:
-        from .homekit import PORT
-    except:
-        # the case of running not from the installed module
-        from homekit import PORT
+    from co2meter.homekit import PORT
 
     host = my_ip()
     parser = optparse.OptionParser()
@@ -360,6 +383,9 @@ def start_server_homekit():
     parser.add_option("-N", "--name",
                       help="Name for the log file [default %s]" % _DEFAULT_NAME,
                       default=_DEFAULT_NAME)
+    parser.add_option("-b", "--bypass-decrypt",
+                      help="Bypass decrypt (needed for certain models of the device)",
+                      action="store_true", dest="bypass_decrypt")
     options, _ = parser.parse_args()
 
     global _name
@@ -368,7 +394,7 @@ def start_server_homekit():
     # Start monitoring
     t_monitor = start_monitor()
     # Start a thread that will initialize homekit once device is connected
-    init_homekit(host=options.host, port=int(options.port_homekit))
+    init_homekit(host=options.host, port=int(options.port_homekit), bypass_decrypt=bool(options.bypass_decrypt))
     # Start server
     app.run(host=options.host, port=int(options.port_flask))
 
@@ -399,16 +425,32 @@ def start_server():
     parser.add_option("-d", "--debug",
                       action="store_true", dest="debug",
                       help=optparse.SUPPRESS_HELP)
+    parser.add_option("-F", "--fahrenheit",
+                      help="Show the temperature in Fahrenheit [default False]",
+                      action="store_true",
+                      default=False,
+                      dest="fahrenheit")
+    parser.add_option("-b", "--bypass-decrypt",
+                      help="Bypass decrypt (needed for certain models of the device)",
+                      action="store_true", dest="bypass_decrypt")
+    parser.add_option("-t", "--tight-margins",
+                      help="Use tight margins when plotting",
+                      action="store_true", dest="tight_margins")
     options, _ = parser.parse_args()
 
     if options.debug and not options.no_monitoring:
         parser.error("--debug option could be used only with --no_monitoring")
     global _name
     _name = options.name
+    global _fahrenheit
+    _fahrenheit = options.fahrenheit
+    global _tight_margins
+    _tight_margins = options.tight_margins
 
     # Start monitoring
+
     if not options.no_monitoring:
-        start_monitor(interval=int(options.interval))
+        start_monitor(interval=int(options.interval), bypass_decrypt=bool(options.bypass_decrypt))
 
     # Start server
     if not options.no_server:
@@ -451,6 +493,9 @@ def wrap_table(data):
     res += '</tbody></table>'
     return res
 
+###############################################################################
+def celsiusToFahrenheit(c):
+    return (9 * float(c)) / 5 + 32
 
 ###############################################################################
 if __name__ == '__main__':

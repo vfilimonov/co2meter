@@ -1,7 +1,7 @@
 # coding=utf-8
 """ Class for reading data from CO2 monitor.
 
-    (c) Vladimir Filimonov, 2016-2018
+    (c) Vladimir Filimonov, 2016-2021
     E-mail: vladimir.a.filimonov@gmail.com
 """
 try:
@@ -23,8 +23,9 @@ import os
 plt = None  # To be imported on demand only
 try:
     import pandas as pd
+    import numpy as np
 except ImportError:
-    pd = None
+    pd = np = None
 
 _CO2MON_HID_VENDOR_ID = 0x04d9
 _CO2MON_HID_PRODUCT_ID = 0xa052
@@ -69,7 +70,7 @@ def convert_temperature(val):
 # Class to operate with CO2 monitor
 #############################################################################
 class CO2monitor:
-    def __init__(self, bypass_decrypt=False):
+    def __init__(self, bypass_decrypt=False, interface_path=None):
         """ Initialize the CO2monitor object and retrieve basic HID info.
 
             Args:
@@ -79,13 +80,16 @@ class CO2monitor:
                     If this happens, setting bypass_decrypt to True might
                     solve the issue.
 
+                interface_path (bytes): when multiple devices are active, allows
+                    you to choose which one should be used for this CO2monitor instance.
             See also:
                 https://github.com/vfilimonov/co2meter/issues/16
         """
         self.bypass_decrypt = bypass_decrypt
         self._info = {'vendor_id': _CO2MON_HID_VENDOR_ID,
                       'product_id': _CO2MON_HID_PRODUCT_ID}
-        self._h = hid.device()
+        self.init_device(interface_path)
+
         # Number of requests to open connection
         self._status = 0
 
@@ -109,6 +113,21 @@ class CO2monitor:
             self._info['product_name'] = self._h.get_product_string()
             self._info['serial_no'] = self._h.get_serial_number_string()
 
+    def init_device(self, interface_path=None):
+        """" Finds a device in the list of available devices and opens one with interface_number or first available
+                if no interface_number is None
+        """
+        checked_interfaces = []
+        for interface in hid.enumerate(self._info['vendor_id'], self._info['product_id']):
+            if interface_path is None or interface['path'] == interface_path:
+                self._h = hid.device()
+                self._info['path'] = interface['path']
+                return
+
+            checked_interfaces.append(interface)
+
+        raise Exception('Unable to find hid device.', interface_path, checked_interfaces)
+
     #########################################################################
     def hid_open(self, send_magic_table=True):
         """ Open connection to HID device. If connection is already open,
@@ -123,7 +142,7 @@ class CO2monitor:
         """
         if self._status == 0:
             # If connection was not opened before
-            self._h.open(self._info['vendor_id'], self._info['product_id'])
+            self._h.open_path(self._info['path'])
             if send_magic_table:
                 self._h.send_feature_report(self._magic_table)
         self._status += 1
@@ -387,7 +406,7 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
 
     # DataFrames
     if (ewma_halflife is not None) and (ewma_halflife > 0):
-        halflife = pd.Timedelta(ewma_halflife, 's') / pd.np.mean(pd.np.diff(data.index))
+        halflife = pd.Timedelta(ewma_halflife, 's') / np.mean(np.diff(data.index))
         co2 = pd.ewma(data.co2, halflife=halflife, min_periods=0)
         temp = pd.ewma(data.temp, halflife=2 * halflife, min_periods=0)
     else:
@@ -396,8 +415,8 @@ def plot(data, plot_temp=False, ewma_halflife=30., **kwargs):
 
     co2_r = co2.copy()
     co2_g = co2.copy()
-    co2_r[co2_r <= CO2_HIGH] = pd.np.NaN
-    co2_g[co2_g >= CO2_LOW] = pd.np.NaN
+    co2_r[co2_r <= CO2_HIGH] = np.NaN
+    co2_g[co2_g >= CO2_LOW] = np.NaN
 
     # Plotting
     ax = kwargs.pop('ax', plt.gca())
