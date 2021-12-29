@@ -27,7 +27,7 @@ FREQUENCY = 45  # seconds - between consecutive reads from the device
 class CO2Accessory(Accessory):
     category = Category.SENSOR  # This is for the icon in the iOS Home app.
 
-    def __init__(self, mon=None, freq=FREQUENCY, monitoring=True, **kwargs):
+    def __init__(self, mon=None, freq=FREQUENCY, monitoring=True, bypass_decrypt=False, **kwargs):
         """ Initialize sensor:
               - call parent __init__
               - save references to characteristics
@@ -38,7 +38,7 @@ class CO2Accessory(Accessory):
         """
         if not monitoring and mon is None:
             raise ValueError('For monitoring=False monitor object should be passed')
-        self.monitor = co2.CO2monitor() if mon is None else mon
+        self.monitor = co2.CO2monitor(bypass_decrypt=bypass_decrypt) if mon is None else mon
         self.frequency = freq
         self.monitoring = monitoring
         super(CO2Accessory, self).__init__(NAME, **kwargs)
@@ -128,7 +128,7 @@ class CO2Accessory(Accessory):
 ###############################################################################
 ###############################################################################
 def start_homekit(mon=None, port=PORT, host=None, monitoring=True,
-                  handle_sigint=True):
+                  handle_sigint=True, bypass_decrypt=False):
     logging.basicConfig(level=logging.INFO)
 
     acc = CO2Accessory(mon=mon, pincode=PINCODE, monitoring=monitoring)

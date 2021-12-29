@@ -161,6 +161,8 @@ Finally, HomeKit and web-server could be combined:
 
 which will start homekit accessory and flask web-server on the local IP address.
 
+**Note** If necessary, `bypass_decrypt` argument could be passed to the command line (e.g. `co2meter_server --bypass-decrypt`).
+
 ## Running web-server as a service
 
 The low-key solution for running server on the remote machine (e.g. on Raspberry py) is to call

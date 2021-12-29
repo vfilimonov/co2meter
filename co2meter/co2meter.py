@@ -22,8 +22,9 @@ import os
 plt = None  # To be imported on demand only
 try:
     import pandas as pd
+    import numpy as np
 except ImportError:
-    pd = None
+    pd = np = None
 
 _CO2MON_HID_VENDOR_ID = 0x04d9
 _CO2MON_HID_PRODUCT_ID = 0xa052
