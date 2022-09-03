@@ -307,7 +307,7 @@ class CO2monitor:
                 else:
                     vals = pd.DataFrame({'co2': vals[1], 'temp': vals[2]},
                                         index=[vals[0]])
-                    self._data = self._data.append(vals)
+                    self._data = pd.concat([self._data, vals])
                 time.sleep(self._interval)
 
     def start_monitoring(self, interval=5):
