@@ -13,6 +13,7 @@ import os
 import socket
 import signal
 import json
+import numpy as np
 
 try:
     from StringIO import StringIO
@@ -222,8 +223,8 @@ def chart_co2_temp(name=None, freq='24H'):
 
     # Make figure
     index = data.index.format()
-    co2 = list(pd.np.where(data.co2.isnull(), None, data.co2))
-    temp = list(pd.np.where(data.temp.isnull(), None, data.temp))
+    co2 = list(np.where(data.co2.isnull(), None, data.co2))
+    temp = list(np.where(data.temp.isnull(), None, data.temp))
 
     d_co2 = {'mode': 'lines+markers', 'type': 'scatter',
              'name': 'CO2 concentration (ppm)',
